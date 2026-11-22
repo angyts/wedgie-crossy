@@ -113,6 +113,31 @@ mod tests {
         assert_eq!(c.boundary, 0);
         assert!(c.update(1, 5));
     }
+    #[test]
+    fn shared_camera_parity_vectors() {
+        let fixtures = include_str!("../../fixtures/camera_parity.csv");
+        let mut cases = 0;
+        for line in fixtures.lines().filter(|s| !s.starts_with('#') && !s.is_empty()) {
+            let parts: Vec<&str> = line.split(',').collect();
+            assert_eq!(parts.len(), 6);
+            let grace: u32 = parts[0].parse().unwrap();
+            let interval: u32 = parts[1].parse().unwrap();
+            let initial: i64 = parts[2].parse().unwrap();
+            let mut cam = Camera::new(grace, interval, initial);
+            let rows: Vec<u32> = parts[3].split(':').map(|s| s.parse().unwrap()).collect();
+            let deaths: Vec<u8> = parts[4].split(':').map(|s| s.parse().unwrap()).collect();
+            let boundaries: Vec<i64> = parts[5].split(':').map(|s| s.parse().unwrap()).collect();
+            assert_eq!(rows.len(), deaths.len());
+            assert_eq!(rows.len(), boundaries.len());
+            for (i, row) in rows.iter().enumerate() {
+                let dead = cam.update(*row, (i + 1) as u32);
+                assert_eq!(dead as u8, deaths[i], "case {cases}, tick {}", i + 1);
+                assert_eq!(cam.boundary, boundaries[i], "case {cases}, tick {}", i + 1);
+            }
+            cases += 1;
+        }
+        assert_eq!(cases, 4);
+    }
     #[test] fn no_heap_required() {
         assert!(core::mem::size_of::<Player>() <= 8);
         assert!(core::mem::size_of::<Camera>() <= 48);
