@@ -1,0 +1,3 @@
+# Stage 14 — five traffic presentation and difficulty features
+
+Fix the Stage 11 test to assert the current road-safety game-over message instead of removed CRASH! text. Five incremental features: (1) red/blue/yellow vehicle palette by road band, (2) 16px/18px car body lengths, (3) traffic interval decreases from three to two active frames at score 30 (bounded), (4) narrow road-edge stripes, and (5) a brief FASTER! on-screen indicator at scores 30–32. Existing deterministic traffic masks and collisions remain unchanged; this does not add wider collision boxes. DEV_MODE remains True with no persistent high-score reads/writes. Test suite and physical hardware validation required.

@@ -32,7 +32,9 @@ class RoadTests(unittest.TestCase):
                 def show(self):pass
             screen=Screen()
             m.draw_world(screen,m.World(123),5,0,0,0,dead=True)
-            self.assertIn("CRASH!",screen.texts)
+            self.assertIn("ALWAYS LOOK",screen.texts)
+            self.assertIn("CROSS THE ROAD",screen.texts)
+            self.assertIn("YOUR SCORE: 0",screen.texts)
             self.assertIn("NEW RUN",screen.texts)
         finally:
             if old is None:sys.modules.pop("lcd",None)

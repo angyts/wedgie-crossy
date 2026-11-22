@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 12: moving road traffic and safe development scoring.
+"""Crossy hardware checkpoint 14: traffic variety and visual road cues.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -26,6 +26,9 @@ TREE_TRUNK = color(105, 64, 28)
 TREE_LEAVES = color(13, 65, 28)
 ROAD = color(65, 68, 72)
 ROAD_MARK = color(180, 175, 115)
+ROAD_EDGE = color(135, 140, 135)
+CAR_BLUE = color(55, 125, 220)
+CAR_YELLOW = color(235, 170, 45)
 CAR = color(210, 55, 45)
 CAR_WINDOW = color(125, 190, 205)
 CAR_WHEEL = color(25, 30, 35)
@@ -215,10 +218,24 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def draw_car(lcd, x, y):
+def car_style(row):
+    """Deterministic visual variant per road band."""
+    return (row // 12) % 3
+
+def car_length(row):
+    return 18 if car_style(row) == 2 else 16
+
+def traffic_interval(score):
+    """Difficulty increases at scores 30 and 60, never below two ticks."""
+    return max(2, TRAFFIC_TICKS - score // 30)
+
+def draw_car(lcd, x, y, row=6):
     """Compact vehicle silhouette with windshield and wheels."""
-    lcd.fill_rect(x + 2, y + 5, 16, 10, CAR)
-    lcd.fill_rect(x + 5, y + 2, 10, 7, CAR)
+    body = (CAR, CAR_BLUE, CAR_YELLOW)[car_style(row)]
+    length = car_length(row)
+    left = (STEP - length) // 2
+    lcd.fill_rect(x + left, y + 5, length, 10, body)
+    lcd.fill_rect(x + 5, y + 2, 10, 7, body)
     lcd.fill_rect(x + 7, y + 3, 6, 4, CAR_WINDOW)
     lcd.fill_rect(x + 4, y + 15, 4, 3, CAR_WHEEL)
     lcd.fill_rect(x + 12, y + 15, 4, 3, CAR_WHEEL)
@@ -237,12 +254,14 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         sy = (WINDOW - 1 - screen_row) * STEP
         if is_road(absolute):
             lcd.fill_rect(0, sy, 240, STEP, ROAD)
+            lcd.fill_rect(0, sy, 240, 2, ROAD_EDGE)
+            lcd.fill_rect(0, sy + 18, 240, 2, ROAD_EDGE)
             for mark_x in range(0, 240, 40):
                 lcd.fill_rect(mark_x + 8, sy + 9, 16, 2, ROAD_MARK)
             cars = moving_car_mask(world.seed, absolute, phase)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
-                    draw_car(lcd, cx * STEP, sy)
+                    draw_car(lcd, cx * STEP, sy, absolute)
             continue
         mask = world.mask(absolute)
         for x in range(GRID_SIZE):
@@ -263,6 +282,8 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     if milestone(score):
         lcd.text("SCORE %d" % score, 5, 5, score_color)
     lcd.text("BEST %d" % best, 145, 5, INK)
+    if score >= 30 and score < 33 and not dead and not paused:
+        lcd.text("FASTER!", 92, 26, INK)
     if dead:
         lcd.fill_rect(8, 73, 224, 112, BG)
         lcd.text("ALWAYS LOOK", 64, 84, INK)
@@ -326,7 +347,7 @@ def run():
             # Traffic advances only during active gameplay, not while paused/dead.
             if not paused and not dead:
                 traffic_tick += 1
-                next_phase = traffic_tick // TRAFFIC_TICKS
+                next_phase = traffic_tick // traffic_interval(score)
                 if next_phase != phase:
                     if is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
                         dead = True
