@@ -25,7 +25,11 @@ def can_continue(rows, state, entry_phase=0, horizon=32,
         raise ValueError("invalid state fields")
     camera = Camera(grace_ticks, pressure_interval, initial_boundary)
     camera.best_row, camera.last_progress_tick, camera.boundary = best, last, boundary
-    # A recorded state already on or behind the death boundary is dead.\n    # Do not allow a move to resurrect it.\n    if y <= boundary:\n        return False\n    frontier = {(y, x, best, last, boundary): ((y, x), camera)}
+    # A recorded state already on or behind the death boundary is dead.
+    # Do not allow a move to resurrect it.
+    if y <= boundary:
+        return False
+    frontier = {(y, x, best, last, boundary): ((y, x), camera)}
     if y == len(rows) - 1:
         return True
     for offset in range(horizon):
