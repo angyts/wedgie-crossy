@@ -36,7 +36,7 @@ class TrafficVarietyTests(unittest.TestCase):
             self.assertNotEqual(cars[1],cars[2])
             s=Screen()
             m.draw_world(s,m.World(123),5,0,30,30)
-            self.assertIn("FASTER!",s.texts)
+            self.assertNotIn("FASTER!",s.texts)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old

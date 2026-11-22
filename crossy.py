@@ -282,8 +282,6 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     if milestone(score):
         lcd.text("SCORE %d" % score, 5, 5, score_color)
     lcd.text("BEST %d" % best, 145, 5, INK)
-    if score >= 30 and score < 33 and not dead and not paused:
-        lcd.text("FASTER!", 92, 26, INK)
     if dead:
         lcd.fill_rect(8, 73, 224, 112, BG)
         lcd.text("ALWAYS LOOK", 64, 84, INK)
