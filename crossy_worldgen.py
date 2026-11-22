@@ -35,7 +35,16 @@ def section(seed, row):
     index = (row - 16) // BLOCK
     offset = (row - 16) % BLOCK
     value = mix32(seed ^ (index * 0x9e3779b9))
-    width = 1 + (value >> 8) % 8
+    start = 16 + index * BLOCK
+    if start < 30:
+        low, high = 1, 2
+    elif start < 70:
+        low, high = 2, 5
+    elif start < 120:
+        low, high = 5, 8
+    else:
+        low, high = 6, 8
+    width = low + (value >> 8) % (high - low + 1)
     if offset >= width:
         return ("grass", 0, 0)
     kind = ("road", "logs", "lilies")[value % 3]
@@ -92,7 +101,7 @@ def lily_mask(seed, row):
     if lane > 0:
         previous = lily_route_col(seed, row - 1)
         mask |= 1 << previous
-    target = max(count_bits(mask), 2 + value % 3)
+    target = max(count_bits(mask), 3 + value % 3)
     for step in range(WIDTH):
         col = (value + step * 5) % WIDTH
         mask |= 1 << col

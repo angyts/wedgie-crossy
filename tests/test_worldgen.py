@@ -15,11 +15,15 @@ class WorldGenTests(unittest.TestCase):
                 kind,lane,width=m.section(seed,row)
                 self.assertIn(kind,("grass","road","logs","lilies"))
                 self.assertTrue(0<=width<=8)
+                if kind!="grass":
+                    start=row-lane
+                    low,high=(1,2) if start<30 else (2,5) if start<70 else (5,8) if start<120 else (6,8)
+                    self.assertTrue(low<=width<=high)
                 self.assertFalse(m.tree_mask(seed,row) & (1<<m.CENTER))
                 if kind=="lilies":
                     self.assertTrue(m.lily_mask(seed,row)&(1<<m.lily_route_col(seed,row)))
-                    self.assertGreaterEqual(m.lily_mask(seed,row).bit_count(),2)
-                    self.assertLessEqual(m.lily_mask(seed,row).bit_count(),4)
+                    self.assertGreaterEqual(m.lily_mask(seed,row).bit_count(),3)
+                    self.assertLessEqual(m.lily_mask(seed,row).bit_count(),5)
                     if m.section(seed,row-1)[0]=="lilies":
                         prev=m.lily_route_col(seed,row-1)
                         self.assertLessEqual(abs(m.lily_route_col(seed,row)-prev),1)

@@ -26,5 +26,5 @@ class MicroPythonCompatTests(unittest.TestCase):
             for row in range(16,160):
                 if w.section(seed,row)[0]=="lilies":
                     n=w.count_bits(w.lily_mask(seed,row))
-                    self.assertGreaterEqual(n,2)
-                    self.assertLessEqual(n,4)
+                    self.assertGreaterEqual(n,3)
+                    self.assertLessEqual(n,5)

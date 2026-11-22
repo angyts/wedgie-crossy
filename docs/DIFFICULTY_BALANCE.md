@@ -1,0 +1,1 @@
+Procedural width progression by section start: rows 16-29: 1-2; 30-69: 2-5; 70-119: 5-8; 120+: 6-8. Lily rows now contain 3-5 pads. This stage does not yet shorten grass gaps or change traffic physics; verify the full suite and reachability scan before hardware installation. main remains unchanged.
