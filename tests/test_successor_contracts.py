@@ -34,6 +34,18 @@ class SuccessorContractTests(unittest.TestCase):
                          grace_ticks=1, pressure_interval=1,
                          initial_boundary=-1))
 
+    def test_state_already_behind_boundary_is_dead(self):
+        state = (1, 5*SUBTILE, 5, 1, 1, 2)
+        self.assertFalse(can_continue(self.rows, state, horizon=5,
+                         grace_ticks=1, pressure_interval=1,
+                         initial_boundary=-1))
+
+    def test_state_just_ahead_of_boundary_can_continue(self):
+        state = (1, 5*SUBTILE, 1, 1, 1, 0)
+        self.assertTrue(can_continue(self.rows, state, horizon=2,
+                        grace_ticks=1, pressure_interval=1,
+                        initial_boundary=-1))
+
     def test_empty_fails_closed(self):
         self.assertFalse(check_successors(self.sections, ())["passed"])
 
