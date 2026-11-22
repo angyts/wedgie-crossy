@@ -31,7 +31,6 @@ TRAFFIC_TICKS = 3
 SMOOTH_TRAFFIC = True  # Set False if LCD transfers are too slow.
 SMOOTH_STEPS = (5, 10, 15)  # Maximum intermediate positions.
 SMOOTH_BUDGET_MS = 65  # Skip late cosmetic frames; never delay controls.
-SMOOTH_TRAFFIC = True
 SMOOTH_FRAME_MS = 40  # Cap partial LCD transfers; skip frames if slow.
 # Visual interpolation only: player lane remains grid-rendered for safety.
 # One intermediate visual frame; logical collisions remain grid-based.
@@ -1027,10 +1026,7 @@ def run():
                         animate_crash(lcd, world, col, row, score, best, facing, phase)
                     crash_animated = True
                 else:
-                    if PROCEDURAL_WORLD and queued_direction is None:
-                        captured = preview_traffic(lcd, world, phase - 1, phase, row, keys)
-                        if captured is not None:
-                            queued_direction = captured
+                    # Never replay old traffic phase after the tick.
                     draw_world(lcd, world, col, row, score, best, paused, facing,
                                dead=False, phase=phase,
                                dirty_rows=changed_hazard_rows(world, phase - 1, phase, row),
@@ -1038,6 +1034,7 @@ def run():
                 next_traffic_at = time.ticks_add(
                     time.ticks_ms(), traffic_interval(score) * FRAME_MS)
                 last_smooth_step = -1
+                last_smooth_at = time.ticks_ms()
             # Render between simulation ticks, never delaying a due tick.
             # A slow LCD simply reduces cosmetic FPS, not input cadence.
             if not paused and not dead and queued_direction is None and SMOOTH_TRAFFIC:
