@@ -111,15 +111,19 @@ def lily_mask(seed, row):
     return mask
 
 def log_section_value(seed, row):
-    """Shared movement parameters keep adjacent log lanes crossable."""
+    """Stable parameters for one river, independent of camera position."""
     block = (row - 8) // BLOCK
     return mix32(seed ^ (block * 0x7f4a7c15))
 
+def log_lane_value(seed, row):
+    return mix32(log_section_value(seed, row) ^ (row * 0x9e3779b9))
+
 def log_direction(seed, row):
-    return -1 if log_section_value(seed, row) & 1 else 1
+    # Neighboring lanes need not alternate, or move together.
+    return -1 if log_lane_value(seed, row) & 1 else 1
 
 def log_period(seed, row):
-    return 1 + (log_section_value(seed, row) >> 3) % 2
+    return 1 + ((log_lane_value(seed, row) >> 3) & 1)
 
 def log_position(seed, row, phase):
     return (phase // log_period(seed, row)) * log_direction(seed, row)
@@ -128,14 +132,15 @@ def log_mask(seed, row, phase):
     kind, lane, width = section(seed, row)
     if kind != "logs":
         return 0
-    # The two 3-cell trunks are aligned throughout a log section.
-    # Players can step vertically between lanes without an impossible
-    # fixed phase offset. Different sections still vary speed/direction.
-    origin = (log_section_value(seed, row) >> 8) % WIDTH
+    # Two broad four-cell trunks, with staggered lane origins.
+    # At phase zero, adjacent lanes differ by at most one cell, so
+    # the player can enter a river without a permanent offset barrier.
+    base = (log_section_value(seed, row) >> 8) % WIDTH
+    origin = (base + (lane & 1)) % WIDTH
     offset = log_position(seed, row, phase) % WIDTH
     mask = 0
     for start in (origin, (origin + 6) % WIDTH):
-        for cell in range(3):
+        for cell in range(4):
             mask |= 1 << ((start + cell + offset) % WIDTH)
     return mask
 

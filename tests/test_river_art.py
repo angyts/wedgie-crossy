@@ -25,8 +25,7 @@ class RiverArtTests(unittest.TestCase):
         self.assertEqual(directions,{-1,1})
         self.assertEqual(periods,{1,2})
         self.assertGreater(same,0)
-        self.assertEqual(opposite,0)
-        self.assertGreater(same,0)
+        self.assertGreater(opposite,0)
     def test_death_portrait_bounded(self):
         lcd=types.ModuleType("lcd")
         lcd.LCD=object
