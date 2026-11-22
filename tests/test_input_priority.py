@@ -25,6 +25,10 @@ class InputPriorityTests(unittest.TestCase):
             result=m.preview_traffic(screen,world,0,1,world.first+5,Keys())
             self.assertEqual(result,"up")
             self.assertEqual(screen.flushed,0)
+            m.SMOOTH_TRAFFIC=False
+            screen=Screen()
+            self.assertEqual(m.preview_traffic(screen,world,0,1,world.first+5,Keys()),"up")
+            self.assertEqual(screen.flushed,0)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old

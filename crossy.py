@@ -608,15 +608,15 @@ def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
     Physics and collision masks remain at integer phases. Returns a buffered
     key if a press arrives during animation.
     """
+    # Input must be captured even when cosmetic rendering is disabled.
+    pressed = keys.pressed()
+    if pressed:
+        return pressed[0]
     if not SMOOTH_TRAFFIC or not hasattr(lcd, "show_rect"):
         return None
     pending = None
     started = time.ticks_ms() if hasattr(time, "ticks_ms") else None
     previous_step = 0
-    # Input has priority even if a slow LCD already exhausted the budget.
-    pressed = keys.pressed()
-    if pressed:
-        return pressed[0]
     for target_step in SMOOTH_STEPS:
         pressed = keys.pressed()
         if pressed:
