@@ -49,12 +49,18 @@ def lily_mask(seed, row):
     kind, lane, width = section(seed, row)
     if kind != "lilies":
         return 0
-    # Continuous central path, plus optional side pads.
+    # Every row has 2–4 pads. Center guarantees a continuous crossing,
+    # and tree_mask leaves the center clear on both banks.
     value = mix32(seed ^ (row * 0x27d4eb2d))
     mask = 1 << CENTER
-    for col in range(WIDTH):
-        if col != CENTER and mix32(value ^ col) % 7 == 0:
+    target = 2 + value % 3
+    start = (value >> 8) % WIDTH
+    for step in range(WIDTH):
+        col = (start + step) % WIDTH
+        if col != CENTER:
             mask |= 1 << col
+            if mask.bit_count() >= target:
+                break
     return mask
 
 def log_mask(seed, row, phase):
