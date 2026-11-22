@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 6: bounded scrolling grass world.
+"""Crossy hardware checkpoint 6b: calm single-color grass rendering.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -160,11 +160,10 @@ def move_world(world, col, row, direction):
     return nc, nr
 
 def draw_world(lcd, world, col, row, score):
-    lcd.fill(BG)
+    lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
         sy = (WINDOW - 1 - screen_row) * STEP
-        lcd.fill_rect(0, sy, 240, STEP, BG if absolute & 1 else GRASS_ALT)
         mask = world.mask(absolute)
         for x in range(GRID_SIZE):
             if mask & (1 << x):
