@@ -4,6 +4,10 @@ Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
 """
 import time
+try:
+    import gc
+except ImportError:
+    gc = None
 import crossy_worldgen as worldgen
 from lcd import LCD, Keys, color
 
@@ -12,6 +16,8 @@ PROFILE_RENDER = False
 _render_frames = 0
 _render_total_ms = 0
 _render_max_ms = 0
+_debug_last_ms = None
+_debug_fps = 0
 # Integration gate: preserve known-good hardware behavior until validation.
 PROCEDURAL_WORLD = True
 # Set to an integer to reproduce a world; None uses timing-derived seeds.
@@ -482,6 +488,25 @@ def draw_log_runs(lcd, mask, sy):
         lcd.fill_rect(left + width - 4, sy + 9, 2, 4, LOG_GRAIN)
         col += 1
 
+def draw_debug_overlay(lcd, seed, phase):
+    """Development-only seed, measured draw FPS, free heap and traffic phase."""
+    global _debug_last_ms, _debug_fps
+    if not DEBUG:
+        return
+    now = time.ticks_ms()
+    if _debug_last_ms is not None:
+        elapsed = time.ticks_diff(now, _debug_last_ms)
+        if elapsed > 0:
+            sample = min(99, 1000 // elapsed)
+            _debug_fps = sample if _debug_fps == 0 else (_debug_fps * 3 + sample) // 4
+    _debug_last_ms = now
+    free_kb = -1
+    if gc is not None and hasattr(gc, "mem_free"):
+        free_kb = gc.mem_free() // 1024
+    lcd.fill_rect(0, 20, 240, 14, BG)
+    lcd.text("S:%08X F:%d M:%dK P:%d" %
+             (seed & 0xffffffff, _debug_fps, free_kb, phase % 100), 1, 22, INK)
+
 def draw_dead_chicken(lcd, kind, frame):
     """Independent 64x48 death animation above the message panel."""
     x, y = 120, 58
@@ -494,6 +519,11 @@ def draw_dead_chicken(lcd, kind, frame):
         lcd.fill_rect(x - 13, top + 3, 4, 3, EYE)
         lcd.fill_rect(x + 10, top + 3, 4, 3, EYE)
         lcd.fill_rect(x - 30, y + 31, 60, 3, ROAD_EDGE)
+        # A rolling wheel presses down over the chicken.
+        wheel_x = x - 34 + min(frame, 5) * 9
+        lcd.fill_rect(wheel_x, y - 7, 24, 24, CAR_WHEEL)
+        lcd.fill_rect(wheel_x + 4, y - 3, 16, 16, ROAD_EDGE)
+        lcd.fill_rect(wheel_x + 9, y + 2, 6, 6, CAR_WHEEL)
     else:
         # Chicken descends into water as ripples spread.
         depth = min(20, frame * 4)
@@ -628,6 +658,8 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.text("RESUME", 76, 119, INK)
         lcd.fill_rect(54, 136, 12, 12, color(45, 205, 80))
         lcd.text("NEW RUN", 76, 138, INK)
+    if DEBUG:
+        draw_debug_overlay(lcd, world.seed, phase)
     lcd.show()
     if PROFILE_RENDER:
         elapsed = time.ticks_diff(time.ticks_ms(), render_started)
