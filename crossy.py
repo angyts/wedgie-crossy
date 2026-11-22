@@ -9,7 +9,9 @@ from lcd import LCD, Keys, color
 
 DEBUG = True
 # Integration gate: preserve known-good hardware behavior until validation.
-PROCEDURAL_WORLD = False
+PROCEDURAL_WORLD = True
+# Set to an integer to reproduce a world; None uses timing-derived seeds.
+FIXED_SEED = None
 FRAME_MS = 100
 # Development mode never reads or writes the persistent high score.
 # Switch to False for release builds after hardware validation.
@@ -165,7 +167,11 @@ def generated_trees(seed, row):
     return worldgen.tree_mask(seed, row) if PROCEDURAL_WORLD else row_mask(seed, row)
 
 def new_run_seed(ticks):
-    return worldgen.seed_from_ticks(ticks) if PROCEDURAL_WORLD else 0x13579bdf
+    if not PROCEDURAL_WORLD:
+        return 0x13579bdf
+    if FIXED_SEED is not None:
+        return FIXED_SEED & 0xffffffff
+    return worldgen.seed_from_ticks(ticks)
 
 def hazard_at(seed, row, col, phase):
     """Collision uses the exact same mask as the renderer."""

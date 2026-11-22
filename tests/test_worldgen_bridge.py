@@ -17,9 +17,13 @@ class BridgeTests(unittest.TestCase):
             spec=importlib.util.spec_from_file_location("crossy_bridge",Path(__file__).resolve().parents[1]/"crossy.py")
             m=importlib.util.module_from_spec(spec)
             spec.loader.exec_module(m)
-            self.assertFalse(m.PROCEDURAL_WORLD)
+            self.assertTrue(m.PROCEDURAL_WORLD)
+            m.PROCEDURAL_WORLD=False
             self.assertEqual(m.new_run_seed(123),0x13579bdf)
             m.PROCEDURAL_WORLD=True
+            m.FIXED_SEED=42
+            self.assertEqual(m.new_run_seed(123),42)
+            m.FIXED_SEED=None
             self.assertNotEqual(m.new_run_seed(123),m.new_run_seed(124))
             seed=m.new_run_seed(123)
             world=m.World(seed)

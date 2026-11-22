@@ -1,0 +1,3 @@
+# First procedural hardware candidate
+
+`PROCEDURAL_WORLD = True` is enabled ONLY on procedural-world. `DEV_MODE = True` keeps flash high-score writes disabled. `FIXED_SEED = None` selects a timing-derived seed; set an integer to reproduce a failure. The startup log prints the seed. The manifest includes both crossy.py and worldgen.py. The game uses generated movement, terrain and hazard masks; car colors follow origin; generated log direction drives carry animation. This is a hardware candidate, not a certified release. Real device timing, full traversability and RAM still need observation. Keep main as rollback. Run full host tests before install; check the first generated hazard after row 16 and replay any failing seed.
