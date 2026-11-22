@@ -4,7 +4,7 @@ Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
 """
 import time
-import crossy_worldgen
+import crossy_worldgen as worldgen
 from lcd import LCD, Keys, color
 
 DEBUG = True
