@@ -17,6 +17,8 @@ class LCDStub:
         self.calls.append(("fill", value))
     def text(self, text, x, y, color):
         self.calls.append(("text", text))
+    def fill_rect(self, x, y, w, h, color):
+        self.calls.append(("fill_rect", x, y, w, h, color))
     def show(self):
         self.calls.append(("show",))
 
@@ -58,6 +60,10 @@ class BootSmokeTests(unittest.TestCase):
             else:
                 sys.modules["time"] = old_time
         self.assertIn(("text", "READY"), screen.calls)
+        self.assertIn(("text", "STATIC CHICKEN"), screen.calls)
+        rects = [c for c in screen.calls if c[0] == "fill_rect"]
+        self.assertEqual(len(rects), 6)
+        self.assertTrue(all(0 <= c[1] and 0 <= c[2] and c[1] + c[3] <= 240 and c[2] + c[4] <= 240 for c in rects))
         self.assertEqual(sum(c[0] == "show" for c in screen.calls), 1)
         self.assertEqual(len(polls), 1)
 
