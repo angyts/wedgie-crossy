@@ -6,7 +6,8 @@
       "about": "Cross the endless grassland. Avoid trees and keep moving!",
       "files": [
         "crossy.py",
-        "crossy_worldgen.py"
+        "crossy_worldgen.py",
+        "traffic_motion.py"
       ],
       "entry": "run",
       "fw": "0.3.5",
