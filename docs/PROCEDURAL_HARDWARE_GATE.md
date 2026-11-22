@@ -1,0 +1,1 @@
+Preflight integration checkpoint: adds generated_move helper for seed-aware procedural movement and collision parity tests. PROCEDURAL_WORLD remains False; game loop still needs to adopt this helper, car identity needs lane-aware coloring, and reachability timing must be reconciled with hardware. Do not install procedural-world on Wedgie yet. Main remains unchanged.

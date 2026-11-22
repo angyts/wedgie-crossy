@@ -180,6 +180,21 @@ def generated_traffic_hit(seed, row, col, before, after):
     return (hazard_at(seed, row, col, before) or
             hazard_at(seed, row, col, after))
 
+def generated_move(world, col, row, direction, phase):
+    """Apply movement and terrain safety consistently with procedural render."""
+    dc, dr = 0, 0
+    if direction == "up": dr = 1
+    elif direction == "down": dr = -1
+    elif direction == "left": dc = -1
+    elif direction == "right": dc = 1
+    else: return col, row, False
+    nc, nr = col + dc, row + dr
+    if not 0 <= nc < GRID_SIZE or nr < world.first or nr > world.last:
+        return col, row, False
+    if terrain_kind(world.seed, nr) == "grass" and hazard_at(world.seed, nr, nc, phase):
+        return col, row, False
+    return nc, nr, hazard_at(world.seed, nr, nc, phase)
+
 def generated_carry(seed, row, col):
     kind, lane, width = worldgen.section(seed, row)
     if kind != "logs":
