@@ -38,6 +38,8 @@ WATER = color(35, 105, 175)
 SPLASH = color(215, 240, 255)
 LOG = color(130, 83, 42)
 LOG_GRAIN = color(165, 111, 62)
+LILY = color(45, 165, 70)
+LILY_VEIN = color(110, 205, 95)
 WATER_RIPPLE = color(65, 135, 195)
 TREE_HIGHLIGHT = color(28, 90, 38)
 SHOULDER = color(95, 105, 75)
@@ -139,6 +141,18 @@ def is_river(row):
     """Sparse river rows, separated from roads."""
     return row >= 12 and row % 24 == 12
 
+def lily_mask(row):
+    """Single stationary lily pad on selected river rows."""
+    if not is_river(row):
+        return 0
+    return 1 << (5 if (row // 24) % 2 == 0 else 4)
+
+def on_lily(row, col):
+    return bool(lily_mask(row) & (1 << col))
+
+def water_supported(row, col, phase):
+    return on_lily(row, col) or supported_by_log(row, col, phase)
+
 def log_mask(row, phase):
     """Two three-cell logs; positions wrap at the edges."""
     if not is_river(row):
@@ -163,7 +177,7 @@ def carry_on_log(row, col, phase):
 
 def is_road(row):
     """Sparse, static test roads; no moving traffic in this checkpoint."""
-    return row >= 6 and row % 12 == 6
+    return row >= 6 and (row % 12 == 6 or (row >= 42 and row % 12 == 7))
 
 def car_mask(seed, row):
     """Reproducible parked cars, leaving the center corridor clear."""
@@ -172,7 +186,7 @@ def car_mask(seed, row):
     return ((1 << 2) | (1 << 8)) if (row // 12) % 2 == 0 else ((1 << 1) | (1 << 9))
 
 def traffic_direction(row):
-    return 1 if (row // 12) % 2 == 0 else -1
+    return (1 if (row // 12) % 2 == 0 else -1) * (-1 if row % 12 == 7 else 1)
 
 def moving_car_mask(seed, row, phase):
     """Two cars shift one cell per traffic step; wrap at the board edge."""
@@ -252,6 +266,10 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
+def car_color(row, col):
+    """Color depends on vehicle position, not just road band."""
+    return (CAR, CAR_BLUE, CAR_YELLOW)[(row // 12 + col // 3) % 3]
+
 def car_style(row):
     """Deterministic visual variant per road band."""
     return (row // 12) % 3
@@ -286,7 +304,7 @@ def draw_splash(lcd, x, y, frame):
 
 def draw_car(lcd, x, y, row=6):
     """Compact vehicle silhouette with windshield and wheels."""
-    body = (CAR, CAR_BLUE, CAR_YELLOW)[car_style(row)]
+    body = car_color(row, x // STEP)
     length = car_length(row)
     left = (STEP - length) // 2
     lcd.fill_rect(x + left, y + 5, length, 10, body)
@@ -311,6 +329,11 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             lcd.fill_rect(0, sy, 240, STEP, WATER)
             for rx in range((absolute % 3) * 12, 240, 60):
                 lcd.fill_rect(rx, sy + 3, 10, 1, WATER_RIPPLE)
+            pads = lily_mask(absolute)
+            for px in range(GRID_SIZE):
+                if pads & (1 << px):
+                    lcd.fill_rect(px * STEP + 3, sy + 3, 14, 14, LILY)
+                    lcd.fill_rect(px * STEP + 8, sy + 4, 2, 9, LILY_VEIN)
             logs = log_mask(absolute, phase)
             for lx in range(GRID_SIZE):
                 if logs & (1 << lx):
@@ -450,7 +473,9 @@ def run():
             if not paused and not dead and traffic_due(time.ticks_ms(), next_traffic_at):
                 next_phase = next_traffic_phase(phase)
                 if is_river(row):
-                    if supported_by_log(row, col, phase):
+                    if on_lily(row, col):
+                        pass  # Stationary pad: do not carry the chicken.
+                    elif supported_by_log(row, col, phase):
                         carried = carry_on_log(row, col, phase)
                         if carried is None:
                             dead = True
@@ -465,7 +490,7 @@ def run():
                     else:
                         dead = True
                         death_kind = "water"
-                    if not dead and not supported_by_log(row, col, next_phase):
+                    if not dead and not water_supported(row, col, next_phase):
                         dead = True
                         death_kind = "water"
                 if not dead and is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
@@ -538,7 +563,7 @@ def run():
                         col, row = nc, nr
                         facing = key
                         death_kind = None
-                        if is_river(row) and not supported_by_log(row, col, phase):
+                        if is_river(row) and not water_supported(row, col, phase):
                             dead = True
                             death_kind = "water"
                         else:
