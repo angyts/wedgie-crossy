@@ -493,13 +493,14 @@ def draw_debug_overlay(lcd, seed, phase):
     global _debug_last_ms, _debug_fps
     if not DEBUG:
         return
-    now = time.ticks_ms()
-    if _debug_last_ms is not None:
-        elapsed = time.ticks_diff(now, _debug_last_ms)
+    now = time.ticks_ms() if hasattr(time, "ticks_ms") else None
+    if now is not None and _debug_last_ms is not None:
+        elapsed = time.ticks_diff(now, _debug_last_ms) if hasattr(time, "ticks_diff") else now - _debug_last_ms
         if elapsed > 0:
             sample = min(99, 1000 // elapsed)
             _debug_fps = sample if _debug_fps == 0 else (_debug_fps * 3 + sample) // 4
-    _debug_last_ms = now
+    if now is not None:
+        _debug_last_ms = now
     free_kb = -1
     if gc is not None and hasattr(gc, "mem_free"):
         free_kb = gc.mem_free() // 1024
@@ -525,15 +526,20 @@ def draw_dead_chicken(lcd, kind, frame):
         lcd.fill_rect(wheel_x + 4, y - 3, 16, 16, ROAD_EDGE)
         lcd.fill_rect(wheel_x + 9, y + 2, 6, 6, CAR_WHEEL)
     else:
-        # Chicken descends into water as ripples spread.
-        depth = min(20, frame * 4)
-        visible = max(4, 27 - depth)
+        # Waterline rises, the chicken sinks, and bubbles escape upward.
+        water_top = y + 31 - min(frame, 5) * 5
+        depth = min(18, frame * 4)
+        visible = max(5, 27 - depth)
         lcd.fill_rect(x - 16, y + depth, 32, visible, CHICKEN)
         lcd.fill_rect(x + 16, y + depth + 5, 8, 4, BEAK)
         lcd.fill_rect(x + 7, y + depth + 4, 3, 3, EYE)
-        lcd.fill_rect(x - 30, y + 25, 60, 5, WATER)
-        radius = 18 + frame * 4
-        lcd.fill_rect(x - radius, y + 29, radius * 2, 2, WATER_RIPPLE)
+        lcd.fill_rect(x - 40, water_top, 80, y + 35 - water_top, WATER)
+        lcd.fill_rect(x - 38, water_top, 76, 2, WATER_RIPPLE)
+        # Two bubble trails drift upward with staggered timing.
+        for bubble in range(3):
+            bx = x + 12 + (bubble % 2) * 9
+            by = y + 22 - ((frame * 5 + bubble * 9) % 25)
+            lcd.fill_rect(bx, by, 3 + (bubble & 1), 3 + (bubble & 1), SPLASH)
 
 def changed_hazard_rows(world, old_phase, new_phase, player_row):
     rows = [player_row]

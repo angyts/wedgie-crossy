@@ -1,0 +1,1 @@
+The development HUD now tolerates desktop Python's missing time.ticks_ms and time.ticks_diff while preserving MicroPython timing when present. Water death portrait gains a rising waterline, sinking chicken and three animated bubbles. All drawing stays above the message popup. No physics, collision or terrain changes. Host tests and physical rendering still require verification.
