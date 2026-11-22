@@ -7,7 +7,8 @@
       "files": [
         "crossy.py",
         "crossy_worldgen.py",
-        "crossy_traffic_motion.py"
+        "crossy_traffic_motion.py",
+        "crossy_runtime.py"
       ],
       "entry": "run",
       "fw": "0.3.5",
