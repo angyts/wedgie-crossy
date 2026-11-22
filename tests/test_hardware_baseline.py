@@ -61,6 +61,34 @@ class BootSmokeTests(unittest.TestCase):
             else:
                 sys.modules["lcd"] = old_lcd
 
+    def test_chicken_rectangles_stay_in_occupied_tile(self):
+        fake_lcd = types.ModuleType("lcd")
+        fake_lcd.LCD = LCDStub
+        fake_lcd.Keys = KeysStub
+        fake_lcd.color = lambda r, g, b: (r, g, b)
+        old_lcd = sys.modules.get("lcd")
+        try:
+            sys.modules["lcd"] = fake_lcd
+            spec = importlib.util.spec_from_file_location("crossy_tile_alignment", APP)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            for col, row in ((0, 0), (5, 9), (11, 11)):
+                screen = LCDStub()
+                x = module.MIN_X + col * module.STEP
+                y = module.MIN_Y + row * module.STEP
+                module.draw_chicken(screen, x, y)
+                self.assertEqual(len(screen.calls), 6)
+                for _, rx, ry, rw, rh, _ in screen.calls:
+                    self.assertGreaterEqual(rx, col * 20)
+                    self.assertGreaterEqual(ry, row * 20)
+                    self.assertLessEqual(rx + rw, (col + 1) * 20)
+                    self.assertLessEqual(ry + rh, (row + 1) * 20)
+        finally:
+            if old_lcd is None:
+                sys.modules.pop("lcd", None)
+            else:
+                sys.modules["lcd"] = old_lcd
+
     def test_tree_collisions_and_open_route(self):
         fake_lcd = types.ModuleType("lcd")
         fake_lcd.LCD = LCDStub

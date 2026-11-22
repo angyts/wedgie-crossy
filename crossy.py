@@ -53,7 +53,8 @@ def draw_trees(lcd):
         lcd.fill_rect(tx + 3, ty + 2, 14, 12, TREE_LEAVES)
 
 def draw_chicken(lcd, x, y):
-    """Compact chicken centered in one 20-pixel grass tile."""
+    """Draw chicken inside the same 20-pixel tile used by tree collision."""
+    x, y = x - MIN_X, y - MIN_Y
     lcd.fill_rect(x + 3, y + 5, 14, 11, CHICKEN)
     lcd.fill_rect(x + 6, y + 2, 9, 6, CHICKEN)
     lcd.fill_rect(x + 15, y + 7, 4, 3, BEAK)
