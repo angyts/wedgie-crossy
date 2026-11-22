@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 5: score, HUD and A-button restart.
+"""Crossy hardware checkpoint 6: bounded scrolling grass world.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -91,8 +91,95 @@ def draw_scene(lcd, x, y, score=0):
     draw_chicken(lcd, x, y)
     lcd.show()
 
+# Stage 6: bounded endless grass world, independent of the older grid helpers.
+# Row 0 is the starting row; row numbers increase as the chicken goes up.
+WINDOW = 12
+START_COL = 5
+START_ROW = 0
+CAMERA_LEAD = 8
+MASK_ALL = (1 << GRID_SIZE) - 1
+
+def row_mask(seed, row):
+    """Stable per-row generation; column 5 always remains clear."""
+    if row < 2:
+        return 0
+    value = (seed ^ ((row + 1) * 0x9e3779b9)) & 0xffffffff
+    value ^= value >> 16
+    value = (value * 0x7feb352d) & 0xffffffff
+    value ^= value >> 15
+    mask = 0
+    for col in range(GRID_SIZE):
+        value ^= (value << 13) & 0xffffffff
+        value ^= value >> 17
+        value ^= (value << 5) & 0xffffffff
+        value &= 0xffffffff
+        if col != START_COL and value % 7 == 0:
+            mask |= 1 << col
+    return mask & MASK_ALL
+
+class World:
+    def __init__(self, seed):
+        self.seed = seed
+        self.rows = [0] * WINDOW
+        self.first = 0
+        self.last = WINDOW - 1
+        for row in range(WINDOW):
+            self.rows[row] = row_mask(seed, row)
+
+    def mask(self, row):
+        if row < self.first or row > self.last:
+            return None
+        return self.rows[row % WINDOW]
+
+    def advance(self, new_first):
+        if new_first < self.first:
+            raise ValueError("world cannot scroll backward")
+        while self.first < new_first:
+            self.first += 1
+            self.last += 1
+            self.rows[self.last % WINDOW] = row_mask(self.seed, self.last)
+
+def move_world(world, col, row, direction):
+    dc, dr = 0, 0
+    if direction == "left":
+        dc = -1
+    elif direction == "right":
+        dc = 1
+    elif direction == "up":
+        dr = 1
+    elif direction == "down":
+        dr = -1
+    else:
+        return col, row
+    nc, nr = col + dc, row + dr
+    if not 0 <= nc < GRID_SIZE or nr < world.first:
+        return col, row
+    mask = world.mask(nr)
+    if mask is None or mask & (1 << nc):
+        return col, row
+    return nc, nr
+
+def draw_world(lcd, world, col, row, score):
+    lcd.fill(BG)
+    for screen_row in range(WINDOW):
+        absolute = world.first + screen_row
+        sy = (WINDOW - 1 - screen_row) * STEP
+        lcd.fill_rect(0, sy, 240, STEP, BG if absolute & 1 else GRASS_ALT)
+        mask = world.mask(absolute)
+        for x in range(GRID_SIZE):
+            if mask & (1 << x):
+                tx = x * STEP
+                lcd.fill_rect(tx + 8, sy + 11, 4, 7, TREE_TRUNK)
+                lcd.fill_rect(tx + 3, sy + 2, 14, 12, TREE_LEAVES)
+    screen_y = (WINDOW - 1 - (row - world.first)) * STEP
+    # draw_chicken accepts the stage-5 logical origin offset.
+    draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y)
+    lcd.fill_rect(0, 0, 240, 17, BG)
+    lcd.text("SCORE %d" % score, 4, 4, INK)
+    lcd.text("A RESET", 170, 4, INK)
+    lcd.show()
+
 def run():
-    # Match the working Snake app: initialize hardware inside run().
     debug("01 run entered")
     lcd = None
     try:
@@ -100,36 +187,40 @@ def run():
         lcd = LCD()
         debug("03 creating Keys")
         keys = Keys()
-        debug("04 drawing fixed trees and grass grid")
-        x, y = START_X, START_Y
-        best_row = (START_Y - MIN_Y) // STEP
-        draw_scene(lcd, x, y, 0)
-        debug("05 frame shown; polling directional presses")
+        debug("04 creating bounded grass world")
+        # Fixed seed during hardware bring-up: every reset is reproducible.
+        seed = 0x13579bdf
+        world = World(seed)
+        col, row, score = START_COL, START_ROW, 0
+        draw_world(lcd, world, col, row, score)
+        debug("05 world shown, seed=%d" % seed)
         while True:
             for key in keys.pressed():
                 if key == "A":
-                    x, y = START_X, START_Y
-                    best_row = (START_Y - MIN_Y) // STEP
+                    world = World(seed)
+                    col, row, score = START_COL, START_ROW, 0
                     debug("reset score=0")
-                    draw_scene(lcd, x, y, 0)
+                    draw_world(lcd, world, col, row, score)
                     break
                 if key in ("up", "down", "left", "right"):
-                    next_x, next_y = try_move(x, y, key)
-                    if (next_x, next_y) != (x, y):
-                        x, y = next_x, next_y
-                        best_row = score_for_row(best_row, y)
-                        score = score_value(best_row)
-                        debug("move %s -> %d,%d score=%d" % (key, x, y, score))
-                        draw_scene(lcd, x, y, score)
+                    nc, nr = move_world(world, col, row, key)
+                    if (nc, nr) != (col, row):
+                        col, row = nc, nr
+                        if row > score:
+                            score = row
+                        if row - world.first > CAMERA_LEAD:
+                            world.advance(row - CAMERA_LEAD)
+                        debug("move %s row=%d col=%d score=%d window=%d..%d" %
+                              (key, row, col, score, world.first, world.last))
+                        draw_world(lcd, world, col, row, score)
                     else:
-                        debug("blocked %s at %d,%d" % (key, x, y))
+                        debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
             time.sleep_ms(FRAME_MS)
     except Exception as exc:
         debug("ERROR: %r" % (exc,))
         import sys
         sys.print_exception(exc)
-        # Best effort: show a visible error marker even if serial logs are lost.
         if lcd is not None:
             try:
                 lcd.fill(0)

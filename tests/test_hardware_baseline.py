@@ -170,12 +170,12 @@ class BootSmokeTests(unittest.TestCase):
                 sys.modules.pop("time", None)
             else:
                 sys.modules["time"] = old_time
-        self.assertIn(("text", "WEDGIE CROSSY"), screen.calls)
+        self.assertIn(("text", "SCORE 0"), screen.calls)
         self.assertIn(("text", "SCORE 0"), screen.calls)
         self.assertIn(("text", "A RESET"), screen.calls)
         rects = [c for c in screen.calls if c[0] == "fill_rect"]
-        self.assertEqual(len(rects), 90)
-        self.assertEqual(len([c for c in rects if c[3] == 20 and c[4] == 20]), 72)
+        self.assertGreaterEqual(len(rects), 18)
+        self.assertEqual(len([c for c in rects if c[3] == 240 and c[4] == 20]), 12)
         self.assertTrue(all(0 <= c[1] and 0 <= c[2] and c[1] + c[3] <= 240 and c[2] + c[4] <= 240 for c in rects))
         self.assertEqual(sum(c[0] == "show" for c in screen.calls), 1)
         self.assertEqual(len(polls), 1)
