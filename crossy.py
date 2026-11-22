@@ -1068,7 +1068,17 @@ def run():
                 if (0 < step < STEP and step != last_smooth_step
                         and time.ticks_diff(now, last_smooth_at) >= SMOOTH_FRAME_MS
                         and remaining > SMOOTH_FRAME_MS):
-                    render_road_motion(lcd, world, phase, row, elapsed, interval_ms)
+                    # Use the same world renderer as joystick redraws.
+                    # Two independent car renderers caused phase disagreement.
+                    road_rows = []
+                    for ri in range(WINDOW - 1):
+                        ar = world.first + ri
+                        if ar != row and terrain_kind(world.seed, ar) == "road":
+                            road_rows.append(ar)
+                    if road_rows:
+                        draw_world(lcd, world, col, row, score, best, paused,
+                                   facing, phase=phase, dirty_rows=road_rows,
+                                   road_step=step)
                     last_smooth_at = time.ticks_ms()
                     last_smooth_step = step
             if queued_direction is not None:
