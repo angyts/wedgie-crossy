@@ -35,7 +35,7 @@ class RoadTests(unittest.TestCase):
             self.assertIn("ALWAYS LOOK",screen.texts)
             self.assertIn("CROSS THE ROAD",screen.texts)
             self.assertIn("YOUR SCORE: 0",screen.texts)
-            self.assertIn("NEW RUN",screen.texts)
+            self.assertIn("PRESS ANY BUTTON",screen.texts)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old

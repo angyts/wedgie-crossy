@@ -610,7 +610,8 @@ def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
             if pending is None:
                 pressed = keys.pressed()
                 if pressed:
-                    pending = pressed[0]
+                    # Prioritize the player's input over cosmetic animation.
+                    return pressed[0]
             sy = (WINDOW - 1 - index) * STEP
             # Rebuild the underlying lane in framebuffer, but send only
             # old/new sprite footprints plus their one-cell margin.

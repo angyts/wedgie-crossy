@@ -34,7 +34,7 @@ class CrashPresentationTests(unittest.TestCase):
             self.assertIn("BEFORE YOU",screen.texts)
             self.assertIn("CROSS THE ROAD",screen.texts)
             self.assertIn("YOUR SCORE: 23",screen.texts)
-            self.assertIn("NEW RUN",screen.texts)
+            self.assertIn("PRESS ANY BUTTON",screen.texts)
             self.assertTrue(any(w==12 and h==12 for x,y,w,h,c in screen.rects))
             self.assertEqual(m.CRASH_FRAMES,5)
         finally:

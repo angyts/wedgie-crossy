@@ -145,7 +145,9 @@ def log_mask(seed, row, phase):
     origin = (base + stagger) % WIDTH
     offset = log_position(seed, row, phase) % WIDTH
     mask = 0
-    for start in (origin, (origin + 6) % WIDTH):
+    # Three shorter trunks provide more transfer opportunities without
+    # making each individual log excessively long.
+    for start in (origin, (origin + 4) % WIDTH, (origin + 8) % WIDTH):
         for cell in range(log_length(seed, row)):
             mask |= 1 << ((start + cell + offset) % WIDTH)
     return mask
