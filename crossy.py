@@ -28,6 +28,7 @@ FRAME_MS = 100
 DEV_MODE = True
 TRAFFIC_TICKS = 3
 SMOOTH_TRAFFIC = True  # Set False if LCD transfers are too slow.
+SMOOTH_STEPS = (5, 10, 15)  # Intermediate pixels per 20-pixel move.
 SMOOTH_TRAFFIC = False
 # One intermediate visual frame; logical collisions remain grid-based.
 # Maximum one grid-cell advance per traffic update, independent of FPS.
@@ -588,7 +589,7 @@ class ClippedLCD:
             self.lcd.fill_rect(left, top, right - left, bottom - top, ink)
 
 def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
-    """One half-tile frame, transferring only changed sprite footprints.
+    """Three sub-tile frames, transferring only changed sprite footprints.
 
     Physics and collision masks remain at integer phases. Returns a buffered
     key if a press arrives during animation.
@@ -596,64 +597,65 @@ def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
     if not SMOOTH_TRAFFIC or not hasattr(lcd, "show_rect"):
         return None
     pending = None
-    for index in range(WINDOW):
-        absolute = world.first + index
-        kind = terrain_kind(world.seed, absolute)
-        if kind not in ("road", "logs") or absolute == player_row:
-            continue
-        old_mask = generated_mask(world.seed, absolute, old_phase)
-        new_mask = generated_mask(world.seed, absolute, new_phase)
-        if old_mask == new_mask:
-            continue
-        if pending is None:
-            pressed = keys.pressed()
-            if pressed:
-                pending = pressed[0]
-        sy = (WINDOW - 1 - index) * STEP
-        # Rebuild the underlying lane in framebuffer, but send only
-        # old/new sprite footprints plus their one-cell margin.
-        if kind == "road":
-            lcd.fill_rect(0, sy, 240, STEP, ROAD)
-            lcd.fill_rect(0, sy, 240, 2, ROAD_EDGE)
-            lcd.fill_rect(0, sy + 18, 240, 2, ROAD_EDGE)
-            lcd.fill_rect(0, sy + 2, 240, 1, SHOULDER)
-            lcd.fill_rect(0, sy + 17, 240, 1, SHOULDER)
-            stripe_shift = (worldgen.mix32(world.seed ^ absolute) & 1) * 8
-            for mark_x in range(0, 240, 40):
-                mx = mark_x + 8 + stripe_shift
-                if mx + 16 <= 240:
-                    lcd.fill_rect(mx, sy + 9, 16, 2, ROAD_MARK)
-            direction = worldgen.road_direction(world.seed, absolute)
-            for cx in range(GRID_SIZE):
-                if old_mask & (1 << cx):
-                    for wrap in (-240, 0, 240):
-                        px = cx * STEP + direction * 10 + wrap
-                        if -STEP < px < 240:
-                            draw_car(ClippedLCD(lcd, 0, sy, STEP), px, sy,
-                                     absolute, old_phase, world.seed, identity_col=cx)
-        else:
-            lcd.fill_rect(0, sy, 240, STEP, WATER)
-            for rx in range((absolute % 3) * 12, 240, 60):
-                lcd.fill_rect(rx, sy + 3, 10, 1, WATER_RIPPLE)
-            direction = worldgen.log_direction(world.seed, absolute)
-            # Draw connected trunks through translated, clipped spans.
-            for wrap in (-240, 0, 240):
-                draw_log_runs(ClippedLCD(lcd, direction * 10 + wrap, sy, STEP),
-                              old_mask, sy)
-        # Expand the old/new occupancy by one tile for intermediate pixels.
-        mask = old_mask | new_mask
-        mask |= (mask << 1) | (mask >> 1)
-        mask &= MASK_ALL
-        cx = 0
-        while cx < GRID_SIZE:
-            if not (mask & (1 << cx)):
-                cx += 1
+    for step in SMOOTH_STEPS:
+        for index in range(WINDOW):
+            absolute = world.first + index
+            kind = terrain_kind(world.seed, absolute)
+            if kind not in ("road", "logs") or absolute == player_row:
                 continue
-            first = cx
-            while cx + 1 < GRID_SIZE and (mask & (1 << (cx + 1))):
+            old_mask = generated_mask(world.seed, absolute, old_phase)
+            new_mask = generated_mask(world.seed, absolute, new_phase)
+            if old_mask == new_mask:
+                continue
+            if pending is None:
+                pressed = keys.pressed()
+                if pressed:
+                    pending = pressed[0]
+            sy = (WINDOW - 1 - index) * STEP
+            # Rebuild the underlying lane in framebuffer, but send only
+            # old/new sprite footprints plus their one-cell margin.
+            if kind == "road":
+                lcd.fill_rect(0, sy, 240, STEP, ROAD)
+                lcd.fill_rect(0, sy, 240, 2, ROAD_EDGE)
+                lcd.fill_rect(0, sy + 18, 240, 2, ROAD_EDGE)
+                lcd.fill_rect(0, sy + 2, 240, 1, SHOULDER)
+                lcd.fill_rect(0, sy + 17, 240, 1, SHOULDER)
+                stripe_shift = (worldgen.mix32(world.seed ^ absolute) & 1) * 8
+                for mark_x in range(0, 240, 40):
+                    mx = mark_x + 8 + stripe_shift
+                    if mx + 16 <= 240:
+                        lcd.fill_rect(mx, sy + 9, 16, 2, ROAD_MARK)
+                direction = worldgen.road_direction(world.seed, absolute)
+                for cx in range(GRID_SIZE):
+                    if old_mask & (1 << cx):
+                        for wrap in (-240, 0, 240):
+                            px = cx * STEP + direction * step + wrap
+                            if -STEP < px < 240:
+                                draw_car(ClippedLCD(lcd, 0, sy, STEP), px, sy,
+                                         absolute, old_phase, world.seed, identity_col=cx)
+            else:
+                lcd.fill_rect(0, sy, 240, STEP, WATER)
+                for rx in range((absolute % 3) * 12, 240, 60):
+                    lcd.fill_rect(rx, sy + 3, 10, 1, WATER_RIPPLE)
+                direction = worldgen.log_direction(world.seed, absolute)
+                # Draw connected trunks through translated, clipped spans.
+                for wrap in (-240, 0, 240):
+                    draw_log_runs(ClippedLCD(lcd, direction * step + wrap, sy, STEP),
+                                  old_mask, sy)
+            # Expand the old/new occupancy by one tile for intermediate pixels.
+            mask = old_mask | new_mask
+            mask |= (mask << 1) | (mask >> 1)
+            mask &= MASK_ALL
+            cx = 0
+            while cx < GRID_SIZE:
+                if not (mask & (1 << cx)):
+                    cx += 1
+                    continue
+                first = cx
+                while cx + 1 < GRID_SIZE and (mask & (1 << (cx + 1))):
+                    cx += 1
+                lcd.show_rect(first * STEP, sy, (cx - first + 1) * STEP, STEP)
                 cx += 1
-            lcd.show_rect(first * STEP, sy, (cx - first + 1) * STEP, STEP)
-            cx += 1
     return pending
 
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None, previous_phase=None):
