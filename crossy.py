@@ -53,6 +53,12 @@ SHOULDER = color(95, 105, 75)
 FLOWER = color(240, 205, 100)
 GRASS_PATCH = color(35, 118, 60)
 PEBBLE = color(135, 150, 120)
+TREE_LIGHT = color(48, 133, 56)
+TREE_PINE = color(17, 84, 45)
+TREE_BUSH = color(42, 112, 38)
+FLOWER_PINK = color(240, 115, 165)
+FLOWER_WHITE = color(242, 232, 210)
+FLOWER_BLUE = color(130, 175, 240)
 # Fixed positions (column, row) for repeatable hardware verification.
 TREES = ((6, 9), (4, 8), (2, 6), (9, 7), (8, 4), (3, 3))
 START_X = 110
@@ -422,6 +428,31 @@ def draw_crash_star(lcd, x, y, frame):
     lcd.fill_rect(max(0, cx - size), cy - 2, min(240 - max(0, cx - size), size * 2), 4, STAR)
     lcd.fill_rect(cx - 2, max(0, cy - size), 4, min(240 - max(0, cy - size), size * 2), STAR)
 
+def draw_tree(lcd, x, y, variant):
+    """Three 20px obstacle silhouettes; geometry never changes collisions."""
+    lcd.fill_rect(x + 8, y + 12, 4, 6, TREE_TRUNK)
+    if variant == 0:
+        lcd.fill_rect(x + 5, y + 2, 10, 14, TREE_LEAVES)
+        lcd.fill_rect(x + 2, y + 6, 16, 7, TREE_LEAVES)
+        lcd.fill_rect(x + 6, y + 4, 6, 4, TREE_LIGHT)
+    elif variant == 1:
+        lcd.fill_rect(x + 8, y + 1, 4, 15, TREE_PINE)
+        lcd.fill_rect(x + 5, y + 5, 10, 10, TREE_PINE)
+        lcd.fill_rect(x + 2, y + 11, 16, 5, TREE_PINE)
+        lcd.fill_rect(x + 8, y + 4, 3, 5, TREE_LIGHT)
+    else:
+        lcd.fill_rect(x + 2, y + 7, 8, 9, TREE_BUSH)
+        lcd.fill_rect(x + 10, y + 6, 8, 10, TREE_BUSH)
+        lcd.fill_rect(x + 6, y + 2, 9, 11, TREE_LEAVES)
+        lcd.fill_rect(x + 9, y + 4, 4, 3, TREE_LIGHT)
+
+def draw_flower(lcd, x, y, variant):
+    petals = (FLOWER_PINK, FLOWER_WHITE, FLOWER_BLUE)[variant % 3]
+    lcd.fill_rect(x + 9, y + 11, 2, 5, TREE_HIGHLIGHT)
+    lcd.fill_rect(x + 7, y + 7, 6, 2, petals)
+    lcd.fill_rect(x + 9, y + 5, 2, 6, petals)
+    lcd.fill_rect(x + 9, y + 8, 2, 2, FLOWER)
+
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
@@ -459,22 +490,22 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         # Sparse deterministic ground details; never affect collisions.
         for x in range(GRID_SIZE):
             if not (mask & (1 << x)):
-                detail = worldgen.mix32(world.seed ^ (absolute * 131) ^ (x * 7919)) % 19
+                value = worldgen.mix32(world.seed ^ (absolute * 131) ^ (x * 7919))
+                detail = value % 11
                 px = x * STEP
-                if detail == 0:
-                    lcd.fill_rect(px + 5, sy + 10, 9, 4, GRASS_PATCH)
-                elif detail == 1:
-                    lcd.fill_rect(px + 10, sy + 9, 3, 3, FLOWER)
-                    lcd.fill_rect(px + 11, sy + 12, 1, 3, TREE_HIGHLIGHT)
-                elif detail == 2:
+                if detail < 3:
+                    draw_flower(lcd, px, sy, (value >> 8) % 3)
+                elif detail == 3:
+                    lcd.fill_rect(px + 4, sy + 11, 12, 4, GRASS_PATCH)
+                    lcd.fill_rect(px + 7, sy + 8, 2, 4, TREE_HIGHLIGHT)
+                    lcd.fill_rect(px + 12, sy + 9, 2, 3, TREE_HIGHLIGHT)
+                elif detail == 4:
                     lcd.fill_rect(px + 8, sy + 13, 5, 2, PEBBLE)
         for x in range(GRID_SIZE):
             if mask & (1 << x):
                 tx = x * STEP
-                lcd.fill_rect(tx + 8, sy + 11, 4, 7, TREE_TRUNK)
-                lcd.fill_rect(tx + 3, sy + 2, 14, 12, TREE_LEAVES)
-                if (absolute + x) & 1:
-                    lcd.fill_rect(tx + 5, sy + 4, 5, 3, TREE_HIGHLIGHT)
+                variant = worldgen.mix32(world.seed ^ (absolute * 977) ^ (x * 313)) % 3
+                draw_tree(lcd, tx, sy, variant)
     screen_y = (WINDOW - 1 - (row - world.first)) * STEP
     # draw_chicken accepts the stage-5 logical origin offset.
     if dead and water_frame:
