@@ -27,6 +27,8 @@ FRAME_MS = 100
 # Switch to False for release builds after hardware validation.
 DEV_MODE = True
 TRAFFIC_TICKS = 3
+SMOOTH_TRAFFIC = True
+# One intermediate visual frame; logical collisions remain grid-based.
 # Maximum one grid-cell advance per traffic update, independent of FPS.
 CRASH_FRAMES = 5
 CRASH_FRAME_MS = 90
@@ -566,6 +568,43 @@ def dynamic_rows(world, player_row):
                 rows.append(absolute)
     return rows
 
+def draw_moving_preview(lcd, world, old_phase, new_phase, player_row):
+    """Half-tile preview of cars/logs; does not advance collision state."""
+    for index in range(WINDOW):
+        absolute = world.first + index
+        kind = terrain_kind(world.seed, absolute)
+        if kind not in ("road", "logs"):
+            continue
+        if kind == "logs" and absolute == player_row:
+            # Existing log-carry animation owns the player's row.
+            continue
+        if generated_mask(world.seed, absolute, old_phase) == generated_mask(world.seed, absolute, new_phase):
+            continue
+        sy = (WINDOW - 1 - index) * STEP
+        background = ROAD if kind == "road" else WATER
+        lcd.fill_rect(0, sy, 240, STEP, background)
+        direction = (worldgen.road_direction(world.seed, absolute) if kind == "road"
+                     else worldgen.log_direction(world.seed, absolute))
+        shift = 10 * direction
+        mask = generated_mask(world.seed, absolute, old_phase)
+        if kind == "road":
+            for cx in range(GRID_SIZE):
+                if mask & (1 << cx):
+                    px = cx * STEP + shift
+                    if 0 <= px and px + STEP <= 240:
+                        draw_car(lcd, px, sy, absolute, old_phase, world.seed)
+        else:
+            # A single connected log body is shifted half a tile.
+            for cx in range(GRID_SIZE):
+                if mask & (1 << cx):
+                    px = cx * STEP + shift
+                    if 0 <= px and px + STEP <= 240:
+                        lcd.fill_rect(px, sy + 5, STEP, 12, LOG)
+                        lcd.fill_rect(px + 3, sy + 7, STEP - 6, 2, LOG_HIGHLIGHT)
+    # Keep the HUD above top-row moving objects.
+    lcd.fill_rect(0, 0, 240, 20, BG)
+    lcd.show()
+
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None):
     global _render_frames, _render_total_ms, _render_max_ms
     render_started = time.ticks_ms() if PROFILE_RENDER else 0
@@ -803,6 +842,8 @@ def run():
                         animate_crash(lcd, world, col, row, score, best, facing, phase)
                     crash_animated = True
                 else:
+                    if SMOOTH_TRAFFIC and PROCEDURAL_WORLD and queued_direction is None:
+                        draw_moving_preview(lcd, world, phase - 1, phase, row)
                     draw_world(lcd, world, col, row, score, best, paused, facing,
                                dead=False, phase=phase,
                                dirty_rows=changed_hazard_rows(world, phase - 1, phase, row))
