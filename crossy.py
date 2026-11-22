@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 8: compact milestone HUD, red-button pause and menu-only restart.
+"""Crossy hardware checkpoint 9: high-contrast milestones and lightweight HUD improvements.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -167,7 +167,7 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
@@ -181,13 +181,24 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     screen_y = (WINDOW - 1 - (row - world.first)) * STEP
     # draw_chicken accepts the stage-5 logical origin offset.
     draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
-    # Compact HUD: a small two-pixel emphasis at every tenth row.
-    lcd.fill_rect(0, 0, 240, 18, BG)
-    lcd.text("SCORE %d" % score, 4, 5, INK)
-    if milestone(score):
-        # A subtle highlight behind the score; never cover gameplay.
-        lcd.fill_rect(2, 2, min(108, 56 + 8 * len(str(score))), 2, CHICKEN)
-    lcd.text("BEST %d" % best, 150, 5, INK)
+    # Clear, legible HUD: no center-screen milestone interruption.
+    lcd.fill_rect(0, 0, 240, 24, BG)
+    score_text = str(score)
+    if milestone_active:
+        # Built-in 8px font: double-print with a 1px offset for bold effect.
+        lcd.text(score_text, 4, 4, CHICKEN)
+        lcd.text(score_text, 5, 4, CHICKEN)
+        lcd.text("x10", 4 + len(score_text) * 8 + 10, 4, CHICKEN)
+    else:
+        lcd.text(score_text, 4, 4, INK)
+    # Feature 1: subtle ten-row progress bar along the bottom of the HUD.
+    lcd.fill_rect(0, 21, (score % 10) * 24, 2, CHICKEN)
+    # Feature 2: highlight the best score only when this run matches it.
+    best_color = CHICKEN if score > 0 and score == best else INK
+    lcd.text("BEST %d" % best, 125, 4, best_color)
+    # Feature 3: on-screen pause affordance without a reset label.
+    if not paused:
+        lcd.text("Y", 224, 13, INK)
     if paused:
         lcd.fill_rect(38, 85, 164, 72, BG)
         lcd.text("PAUSED", 96, 95, INK)
@@ -218,6 +229,7 @@ def run():
         col, row, score = START_COL, START_ROW, 0
         paused = False
         facing = "right"
+        milestone_until = None
         draw_world(lcd, world, col, row, score, best, paused, facing)
         debug("05 world shown, seed=%d" % seed)
         while True:
@@ -242,6 +254,7 @@ def run():
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
                         facing = "right"
+                        milestone_until = None
                         paused = False
                         debug("new run")
                         draw_world(lcd, world, col, row, score, best, paused, facing)
@@ -254,6 +267,8 @@ def run():
                             facing = key
                         if row > score:
                             score = row
+                            if milestone(score):
+                                milestone_until = time.ticks_add(time.ticks_ms(), 900)
                             if score > best:
                                 best = score
                             if milestone(score) and best > saved_best:
@@ -266,10 +281,16 @@ def run():
                             world.advance(row - CAMERA_LEAD)
                         debug("move %s row=%d col=%d score=%d window=%d..%d" %
                               (key, row, col, score, world.first, world.last))
-                        draw_world(lcd, world, col, row, score, best, paused, facing)
+                        draw_world(lcd, world, col, row, score, best, paused, facing,
+                                   milestone_until is not None)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
+            if milestone_until is not None and time.ticks_diff(
+                    time.ticks_ms(), milestone_until) >= 0:
+                milestone_until = None
+                if not paused:
+                    draw_world(lcd, world, col, row, score, best, paused, facing)
             time.sleep_ms(FRAME_MS)
     except Exception as exc:
         debug("ERROR: %r" % (exc,))
