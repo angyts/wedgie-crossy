@@ -122,14 +122,31 @@ def log_mask(seed, row, phase):
             mask |= 1 << ((start + cell + offset) % WIDTH)
     return mask
 
+def road_direction(seed, row):
+    """Independent reproducible direction per lane."""
+    return -1 if mix32(seed ^ (row * 0x27d4eb2d)) & 1 else 1
+
+def road_period(seed, row):
+    """One tile per 1, 2 or 3 shared traffic updates."""
+    return 1 + mix32(seed ^ (row * 0x165667b1)) % 3
+
+def road_position(seed, row, phase):
+    """Monotonic lane clock: never derive positions from score."""
+    return (phase // road_period(seed, row)) * road_direction(seed, row)
+
+def road_origins(seed, row):
+    value = mix32(seed ^ (row * 0x9e3779b9))
+    first = value % WIDTH
+    separation = 5 + (value >> 12) % 4
+    return first, (first + separation) % WIDTH
+
 def road_mask(seed, row, phase):
     kind, lane, width = section(seed, row)
     if kind != "road":
         return 0
-    direction = -1 if lane & 1 else 1
-    offset = (phase * direction) % WIDTH
-    origin = mix32(seed ^ row) % WIDTH
-    return (1 << ((origin + offset) % WIDTH)) | (1 << ((origin + 6 + offset) % WIDTH))
+    shift = road_position(seed, row, phase)
+    first, second = road_origins(seed, row)
+    return (1 << ((first + shift) % WIDTH)) | (1 << ((second + shift) % WIDTH))
 
 def seed_from_ticks(ticks):
     """Vary each new run, without storing anything to flash.

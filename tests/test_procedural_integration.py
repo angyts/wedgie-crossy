@@ -23,11 +23,11 @@ class IntegrationTests(unittest.TestCase):
                 world.advance(16)
                 for row in range(16,32):
                     if m.terrain_kind(seed,row)!="road":continue
-                    direction=-1 if m.worldgen.section(seed,row)[1]&1 else 1
+                    direction=m.worldgen.road_direction(seed,row)
                     for origin in range(12):
                         initial=m.car_color(row,origin,0,seed)
                         for phase in range(24):
-                            col=(origin+phase*direction)%12
+                            col=(origin+m.worldgen.road_position(seed,row,phase))%12
                             self.assertEqual(m.car_color(row,col,phase,seed),initial)
                 self.assertEqual(m.generated_move(world,5,16,"down",0)[:2],(5,16))
             self.assertTrue(m.DEV_MODE)

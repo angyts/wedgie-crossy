@@ -40,7 +40,8 @@ def crossing_possible(seed, block, max_ticks=160):
             return True, tick
         if tick >= max_ticks:
             continue
-        next_phase = (phase + 1) % w.WIDTH
+        # Road periods 1/2/3 repeat over 36 shared updates; logs over 12.
+        next_phase = (phase + 1) % 36
         kind = w.section(seed, row)[0]
         carried = col
         if kind == "logs":

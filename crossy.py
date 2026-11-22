@@ -346,9 +346,7 @@ def milestone(score):
 def car_color(row, col, phase=0, seed=None):
     """Color follows the vehicle from its original column, including wraps."""
     if PROCEDURAL_WORLD and seed is not None:
-        lane = worldgen.section(seed, row)[1]
-        direction = -1 if lane & 1 else 1
-        origin = (col - phase * direction) % GRID_SIZE
+        origin = (col - worldgen.road_position(seed, row, phase)) % GRID_SIZE
         return (CAR, CAR_BLUE, CAR_YELLOW)[(worldgen.mix32(seed ^ row) + origin // 3) % 3]
     origin = (col - phase * traffic_direction(row)) % GRID_SIZE
     return (CAR, CAR_BLUE, CAR_YELLOW)[(row // 12 + origin // 3) % 3]
