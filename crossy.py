@@ -780,9 +780,12 @@ def run():
                                                          best, facing, phase, next_phase, keys)
                             if queued_direction is None:
                                 queued_direction = captured
-                    else:
+                    elif hazard_at(seed, row, col, phase):
+                        # Unsupported at the OLD phase: genuine water death.
                         dead = True
                         death_kind = "water"
+                    # A supported stationary log/pad must not drown merely
+                    # because its lane skips this traffic update.
                     if not dead and hazard_at(seed, row, col, next_phase):
                         dead = True
                         death_kind = "water"
