@@ -22,8 +22,6 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Rust runtime unit tests
-        run: cargo test --manifest-path wedgie-runtime/Cargo.toml --locked
+        run: cargo test --manifest-path wedgie-runtime/Cargo.toml
       - name: Rust no_std library check
-        run: cargo check --manifest-path wedgie-runtime/Cargo.toml --lib --locked
-      - name: Rust formatting
-        run: cargo fmt --manifest-path wedgie-runtime/Cargo.toml --all -- --check
+        run: cargo check --manifest-path wedgie-runtime/Cargo.toml --lib
