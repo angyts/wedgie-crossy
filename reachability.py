@@ -22,7 +22,7 @@ def safe(seed, row, col, phase):
 def crossing_possible(seed, block, max_ticks=160):
     """Find a path across a single hazard block from its lower grass bank.
 
-    Returns (possible, earliest_tick). The 12-phase cycle is exact for the
+    Returns (possible, earliest_tick). The 72-phase cycle is exact for the
     current one-cell-per-step masks. This searches a finite horizon and does
     not certify real-time reaction feasibility on hardware.
     """
@@ -40,8 +40,8 @@ def crossing_possible(seed, block, max_ticks=160):
             return True, tick
         if tick >= max_ticks:
             continue
-        # Road periods 1/2/3 repeat over 36 shared updates; logs over 12.
-        next_phase = (phase + 1) % 36
+        # Road periods 1/2/3 repeat over 72 shared updates; logs over 12.
+        next_phase = (phase + 1) % 72
         kind = w.section(seed, row)[0]
         carried = col
         if kind == "logs":

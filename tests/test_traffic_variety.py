@@ -20,10 +20,10 @@ class TrafficVarietyTests(unittest.TestCase):
                     d=w.road_direction(seed,row)
                     period=w.road_period(seed,row)
                     directions.add(d);periods.add(period)
-                    for phase in range(36):
+                    for phase in range(72):
                         mask=w.road_mask(seed,row,phase)
                         self.assertEqual(w.count_bits(mask),2)
-                        self.assertEqual(mask,w.road_mask(seed,row,phase+36))
+                        self.assertEqual(mask,w.road_mask(seed,row,phase+72))
                         before=w.road_position(seed,row,phase)
                         after=w.road_position(seed,row,phase+1)
                         self.assertIn(after-before,(0,d))
