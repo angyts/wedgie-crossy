@@ -13,17 +13,20 @@ class TrafficVarietyTests(unittest.TestCase):
         same=opposite=0
         for seed in range(100):
             for block in range(12):
-                start=16+block*16
+                start=8+block*w.BLOCK
                 kind,lane,width=w.section(seed,start)
                 if kind!="road":continue
+                self.assertEqual(lane,0)
+                self.assertTrue(1<=width<=8)
+                self.assertTrue(all(w.section(seed,start+i)[0]=="road" for i in range(width)))
                 for row in range(start,start+width):
                     d=w.road_direction(seed,row)
                     period=w.road_period(seed,row)
                     directions.add(d);periods.add(period)
-                    for phase in range(72):
+                    for phase in range(24):
                         mask=w.road_mask(seed,row,phase)
                         self.assertEqual(w.count_bits(mask),2)
-                        self.assertEqual(mask,w.road_mask(seed,row,phase+72))
+                        self.assertEqual(mask,w.road_mask(seed,row,phase+24))
                         before=w.road_position(seed,row,phase)
                         after=w.road_position(seed,row,phase+1)
                         self.assertIn(after-before,(0,d))
