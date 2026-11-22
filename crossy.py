@@ -451,6 +451,14 @@ def draw_car(lcd, x, y, row=6, phase=0, seed=None, identity_col=None):
         lcd.fill_rect(x + left, y + 4, length, 11, body)
         lcd.fill_rect(x + 4, y + 5, 6, 5, CAR_WINDOW)
         lcd.fill_rect(x + 12, y + 7, 3, 2, CAR_WINDOW)
+    # Small 1px highlights add shape without changing sprite bounds,
+    # collision masks, or the number of LCD transfers.
+    if style == 0:
+        lcd.fill_rect(x + 3, y + 11, 2, 2, CAR_WINDOW)
+    elif style == 1:
+        lcd.fill_rect(x + 15, y + 10, 2, 2, CAR_WINDOW)
+    else:
+        lcd.fill_rect(x + 14, y + 5, 2, 2, CAR_WINDOW)
     lcd.fill_rect(x + 4, y + 15, 4, 3, CAR_WHEEL)
     lcd.fill_rect(x + 12, y + 15, 4, 3, CAR_WHEEL)
 
