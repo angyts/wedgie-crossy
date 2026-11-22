@@ -28,7 +28,8 @@ FRAME_MS = 100
 DEV_MODE = True
 TRAFFIC_TICKS = 3
 SMOOTH_TRAFFIC = True  # Set False if LCD transfers are too slow.
-SMOOTH_STEPS = (5, 10, 15)  # Intermediate pixels per 20-pixel move.
+SMOOTH_STEPS = (5, 10, 15)  # Maximum intermediate positions.
+SMOOTH_BUDGET_MS = 65  # Skip late cosmetic frames; never delay controls.
 SMOOTH_TRAFFIC = False
 # One intermediate visual frame; logical collisions remain grid-based.
 # Maximum one grid-cell advance per traffic update, independent of FPS.
@@ -588,6 +589,19 @@ class ClippedLCD:
         if left < right and top < bottom:
             self.lcd.fill_rect(left, top, right - left, bottom - top, ink)
 
+def interpolation_steps(now, started, budget_ms=SMOOTH_BUDGET_MS):
+    """Choose a bounded visual offset without waiting for the LCD.
+
+    On slow hardware, jump to the latest useful offset instead of trying
+    to render overdue intermediate frames. This does not advance physics.
+    """
+    elapsed = time.ticks_diff(now, started) if hasattr(time, "ticks_diff") else now - started
+    if elapsed < 0:
+        elapsed = 0
+    if elapsed >= budget_ms:
+        return 20
+    return min(19, (elapsed * 20) // budget_ms)
+
 def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
     """Three sub-tile frames, transferring only changed sprite footprints.
 
@@ -597,7 +611,21 @@ def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
     if not SMOOTH_TRAFFIC or not hasattr(lcd, "show_rect"):
         return None
     pending = None
-    for step in SMOOTH_STEPS:
+    started = time.ticks_ms() if hasattr(time, "ticks_ms") else None
+    previous_step = 0
+    for target_step in SMOOTH_STEPS:
+        if started is None:
+            step = target_step
+        else:
+            # Time-based pacing: skip intermediate frames already made late
+            # by previous SPI transfers instead of extending the animation.
+            elapsed = time.ticks_diff(time.ticks_ms(), started)
+            if elapsed >= SMOOTH_BUDGET_MS:
+                break
+            step = max(target_step, interpolation_steps(time.ticks_ms(), started))
+        if step <= previous_step or step >= STEP:
+            continue
+        previous_step = step
         for index in range(WINDOW):
             absolute = world.first + index
             kind = terrain_kind(world.seed, absolute)
