@@ -512,19 +512,24 @@ def draw_dead_chicken(lcd, kind, frame):
     """Independent 64x48 death animation above the message panel."""
     x, y = 120, 58
     if kind == "road":
-        # Squash a full-sized chicken over five frames.
-        height = max(6, 28 - frame * 5)
-        top = y + 30 - height
-        lcd.fill_rect(x - 26, top, 52, height, CHICKEN)
-        lcd.fill_rect(x + 26, top + height // 2, 9, 5, BEAK)
-        lcd.fill_rect(x - 13, top + 3, 4, 3, EYE)
-        lcd.fill_rect(x + 10, top + 3, 4, 3, EYE)
-        lcd.fill_rect(x - 30, y + 31, 60, 3, ROAD_EDGE)
-        # A rolling wheel presses down over the chicken.
-        wheel_x = x - 34 + min(frame, 5) * 9
-        lcd.fill_rect(wheel_x, y - 7, 24, 24, CAR_WHEEL)
-        lcd.fill_rect(wheel_x + 4, y - 3, 16, 16, ROAD_EDGE)
-        lcd.fill_rect(wheel_x + 9, y + 2, 6, 6, CAR_WHEEL)
+        # Exaggerated squash: the body spreads and becomes almost flat.
+        height = max(3, 28 - frame * 6)
+        width = 32 + frame * 7
+        top = y + 31 - height
+        lcd.fill_rect(x - width // 2, top, width, height, CHICKEN)
+        lcd.fill_rect(x + width // 2, top + height // 2, 7, 3, BEAK)
+        lcd.fill_rect(x - 12, top + 1, 3, 2, EYE)
+        lcd.fill_rect(x + 10, top + 1, 3, 2, EYE)
+        lcd.fill_rect(x - 40, y + 32, 80, 3, ROAD_EDGE)
+        # A compact car rolls over the chicken: body, window, and a large wheel.
+        car_x = x - 72 + min(frame, 5) * 16
+        lcd.fill_rect(car_x, y - 10, 62, 18, CAR)
+        lcd.fill_rect(car_x + 12, y - 18, 32, 10, CAR)
+        lcd.fill_rect(car_x + 17, y - 16, 21, 7, CAR_WINDOW)
+        wheel_x = car_x + 23
+        lcd.fill_rect(wheel_x, y + 2, 32, 30, CAR_WHEEL)
+        lcd.fill_rect(wheel_x + 5, y + 7, 22, 20, ROAD_EDGE)
+        lcd.fill_rect(wheel_x + 12, y + 14, 8, 7, CAR_WHEEL)
     else:
         # Waterline rises, the chicken sinks, and bubbles escape upward.
         water_top = y + 31 - min(frame, 5) * 5

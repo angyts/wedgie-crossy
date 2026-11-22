@@ -23,10 +23,10 @@ class HudDirtyTests(unittest.TestCase):
                 def show(self):pass
             world=m.World(123)
             screen=Screen()
-            m.draw_world(screen,world,5,0,0,dirty_rows=[world.first])
+            m.draw_world(screen,world,5,0,0,dirty_rows=[world.first+m.WINDOW-1])
             self.assertTrue(any(s.startswith("SCORE") for s in screen.texts))
             screen=Screen()
-            m.draw_world(screen,world,5,0,0,dirty_rows=[world.first+1])
+            m.draw_world(screen,world,5,0,0,dirty_rows=[world.first])
             self.assertFalse(any(s.startswith("SCORE") for s in screen.texts))
         finally:
             if old is None:sys.modules.pop("lcd",None)
