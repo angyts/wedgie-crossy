@@ -83,6 +83,8 @@ pub fn step_grass(player: &mut Player, camera: &mut Camera, tick: u32,
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use self::std::vec::Vec;
     use super::*;
     #[test] fn moves_and_bounds() {
         let mut p = Player { row: 0, column: 5 };
