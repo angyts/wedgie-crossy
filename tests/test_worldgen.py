@@ -46,8 +46,8 @@ class WorldGenTests(unittest.TestCase):
     def test_grass_buffer(self):
         for seed in range(100):
             for block in range(20):
-                base=16+block*m.BLOCK
+                base=8+block*m.BLOCK
                 self.assertTrue(all(m.section(seed,base+i)[0]=="grass"
-                                    for i in range(8,16)))
+                                    for i in range(8,m.BLOCK)))
 if __name__=="__main__":
     unittest.main()

@@ -11,7 +11,7 @@ class ReachabilityTests(unittest.TestCase):
         checked=0
         for seed in range(100):
             for block in range(8):
-                if w.section(seed,16+block*w.BLOCK)[0]=="lilies":
+                if w.section(seed,8+block*w.BLOCK)[0]=="lilies":
                     possible,tick=r.crossing_possible(seed,block)
                     self.assertTrue(possible,(seed,block))
                     checked+=1
@@ -25,7 +25,7 @@ class ReachabilityTests(unittest.TestCase):
 
     def test_road_occupancy(self):
         for seed in range(10):
-            row=16
+            row=8
             if w.section(seed,row)[0]=="road":
                 for phase in range(12):
                     for col in range(12):

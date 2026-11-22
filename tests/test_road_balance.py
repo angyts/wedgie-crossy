@@ -11,7 +11,7 @@ class BalanceTests(unittest.TestCase):
         counts={"road":0,"logs":0,"lilies":0}
         for seed in range(100):
             for block in range(20):
-                start=16+block*w.BLOCK
+                start=8+block*w.BLOCK
                 kind,lane,width=w.section(seed,start)
                 counts[kind]+=1
                 if start<30:self.assertLessEqual(width,2)
