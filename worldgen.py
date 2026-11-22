@@ -76,10 +76,15 @@ def lily_mask(seed, row):
     kind, lane, width = section(seed, row)
     if kind != "lilies":
         return 0
-    # 2-4 pads with a connected seed-dependent route.
+    # Each row contains a landing pad at the previous row's route column,
+    # so a sideways change never requires an impossible diagonal jump.
     value = mix32(seed ^ (row * 0x27d4eb2d))
-    mask = 1 << lily_route_col(seed, row)
-    target = 2 + value % 3
+    route = lily_route_col(seed, row)
+    mask = 1 << route
+    if lane > 0:
+        previous = lily_route_col(seed, row - 1)
+        mask |= 1 << previous
+    target = max(mask.bit_count(), 2 + value % 3)
     for step in range(WIDTH):
         col = (value + step * 5) % WIDTH
         mask |= 1 << col
