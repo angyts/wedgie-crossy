@@ -146,6 +146,9 @@ class BootSmokeTests(unittest.TestCase):
         fake_lcd.Keys = lambda: types.SimpleNamespace(
             pressed=lambda: polls.append(True) or ())
         fake_lcd.color = lambda r, g, b: (r, g, b)
+        fake_save = types.ModuleType("save")
+        fake_save.load = lambda name, default=0: default
+        fake_save.store = lambda name, value: None
         fake_time = types.ModuleType("time")
         def sleep(ms):
             self.assertEqual(ms, 100)
@@ -153,9 +156,11 @@ class BootSmokeTests(unittest.TestCase):
         fake_time.sleep_ms = sleep
         old_lcd = sys.modules.get("lcd")
         old_time = sys.modules.get("time")
+        old_save = sys.modules.get("save")
         try:
             sys.modules["lcd"] = fake_lcd
             sys.modules["time"] = fake_time
+            sys.modules["save"] = fake_save
             spec = importlib.util.spec_from_file_location("crossy_baseline_smoke", APP)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
@@ -166,6 +171,10 @@ class BootSmokeTests(unittest.TestCase):
                 sys.modules.pop("lcd", None)
             else:
                 sys.modules["lcd"] = old_lcd
+            if old_save is None:
+                sys.modules.pop("save", None)
+            else:
+                sys.modules["save"] = old_save
             if old_time is None:
                 sys.modules.pop("time", None)
             else:

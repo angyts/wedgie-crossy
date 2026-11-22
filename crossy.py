@@ -1,9 +1,10 @@
-"""Crossy hardware checkpoint 6b: calm single-color grass rendering.
+"""Crossy hardware checkpoint 7: pause, saved best score and progress milestones.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
 """
 import time
+import save
 from lcd import LCD, Keys, color
 
 DEBUG = True
@@ -159,7 +160,10 @@ def move_world(world, col, row, direction):
         return col, row
     return nc, nr
 
-def draw_world(lcd, world, col, row, score):
+def milestone(score):
+    return score if score > 0 and score % 10 == 0 else 0
+
+def draw_world(lcd, world, col, row, score, best=0, paused=False):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
@@ -175,7 +179,15 @@ def draw_world(lcd, world, col, row, score):
     draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y)
     lcd.fill_rect(0, 0, 240, 17, BG)
     lcd.text("SCORE %d" % score, 4, 4, INK)
-    lcd.text("A RESET", 170, 4, INK)
+    lcd.text("BEST %d" % best, 112, 4, INK)
+    lcd.text("A RESET", 176, 4, INK)
+    if paused:
+        lcd.fill_rect(50, 94, 140, 46, BG)
+        lcd.text("PAUSED", 96, 104, INK)
+        lcd.text("Y RESUME", 80, 122, INK)
+    elif milestone(score):
+        lcd.fill_rect(55, 100, 130, 20, BG)
+        lcd.text("ROW %d!" % score, 85, 106, INK)
     lcd.show()
 
 def run():
@@ -189,17 +201,37 @@ def run():
         debug("04 creating bounded grass world")
         # Fixed seed during hardware bring-up: every reset is reproducible.
         seed = 0x13579bdf
+        try:
+            best = save.load("best", 0)
+            if not isinstance(best, int) or best < 0:
+                best = 0
+        except (OSError, ValueError, TypeError) as exc:
+            debug("best load failed: %r" % (exc,))
+            best = 0
         world = World(seed)
         col, row, score = START_COL, START_ROW, 0
-        draw_world(lcd, world, col, row, score)
+        paused = False
+        draw_world(lcd, world, col, row, score, best)
         debug("05 world shown, seed=%d" % seed)
         while True:
             for key in keys.pressed():
+                if key == "Y":
+                    paused = not paused
+                    debug("pause=%s" % paused)
+                    draw_world(lcd, world, col, row, score, best, paused)
+                    break
+                if paused:
+                    break
                 if key == "A":
+                    if score > 0 and score == best:
+                        try:
+                            save.store("best", best)
+                        except OSError as exc:
+                            debug("best save failed: %r" % (exc,))
                     world = World(seed)
                     col, row, score = START_COL, START_ROW, 0
                     debug("reset score=0")
-                    draw_world(lcd, world, col, row, score)
+                    draw_world(lcd, world, col, row, score, best)
                     break
                 if key in ("up", "down", "left", "right"):
                     nc, nr = move_world(world, col, row, key)
@@ -207,11 +239,20 @@ def run():
                         col, row = nc, nr
                         if row > score:
                             score = row
+                            if score > best:
+                                best = score
+                                # Save only when a new ten-row milestone is reached,
+                                # or when the player resets. Avoid flash writes per move.
+                                if milestone(score):
+                                    try:
+                                        save.store("best", best)
+                                    except OSError as exc:
+                                        debug("best save failed: %r" % (exc,))
                         if row - world.first > CAMERA_LEAD:
                             world.advance(row - CAMERA_LEAD)
                         debug("move %s row=%d col=%d score=%d window=%d..%d" %
                               (key, row, col, score, world.first, world.last))
-                        draw_world(lcd, world, col, row, score)
+                        draw_world(lcd, world, col, row, score, best)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
