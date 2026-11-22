@@ -569,7 +569,7 @@ def dynamic_rows(world, player_row):
                 rows.append(absolute)
     return rows
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None, previous_phase=None):
     global _render_frames, _render_total_ms, _render_max_ms
     render_started = time.ticks_ms() if PROFILE_RENDER else 0
     if dirty_rows is None:
@@ -682,7 +682,25 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         for absolute in dirty_rows:
             if world.first <= absolute <= world.last:
                 sy = (WINDOW - 1 - (absolute - world.first)) * STEP
-                lcd.show_rect(0, sy, 240, STEP)
+                kind = terrain_kind(world.seed, absolute)
+                if previous_phase is not None and kind in ("road", "logs"):
+                    # Both old and new footprints must be transferred: old
+                    # sprites disappear and new sprites become visible.
+                    changed = (generated_mask(world.seed, absolute, previous_phase) |
+                               generated_mask(world.seed, absolute, phase))
+                    # Group adjacent occupied tiles to reduce SPI calls.
+                    cx = 0
+                    while cx < GRID_SIZE:
+                        if not (changed & (1 << cx)):
+                            cx += 1
+                            continue
+                        first = cx
+                        while cx + 1 < GRID_SIZE and changed & (1 << (cx + 1)):
+                            cx += 1
+                        lcd.show_rect(first * STEP, sy, (cx - first + 1) * STEP, STEP)
+                        cx += 1
+                else:
+                    lcd.show_rect(0, sy, 240, STEP)
         # The HUD overlays the uppermost terrain row.
         if (world.first + WINDOW - 1) in dirty_rows:
             lcd.show_rect(0, 0, 240, 20)
@@ -821,7 +839,8 @@ def run():
                 else:
                     draw_world(lcd, world, col, row, score, best, paused, facing,
                                dead=False, phase=phase,
-                               dirty_rows=changed_hazard_rows(world, phase - 1, phase, row))
+                               dirty_rows=changed_hazard_rows(world, phase - 1, phase, row),
+                               previous_phase=phase - 1)
                 next_traffic_at = time.ticks_add(
                     time.ticks_ms(), traffic_interval(score) * FRAME_MS)
             if queued_direction is not None:
