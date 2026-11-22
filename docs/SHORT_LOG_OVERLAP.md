@@ -1,0 +1,1 @@
+Death-screen prompt changed to PRESS ANY BUTTON. Short 2-3 tile logs now use a 0/1-cell stagger instead of -1/0/1, improving phase-zero overlap between adjacent lanes. This does not guarantee time-expanded reachability. Run full unit suite and reachability scan before installing. Smooth animation steps unchanged.

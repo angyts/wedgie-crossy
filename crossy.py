@@ -752,7 +752,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             lcd.text("CROSS THE ROAD", 49, 148, INK)
         lcd.text("YOUR SCORE: %d" % score, 57, 173, CHICKEN)
         lcd.fill_rect(48, 193, 12, 12, color(45, 205, 80))
-        lcd.text("NEW RUN", 70, 195, INK)
+        lcd.text("PRESS ANY BUTTON", 65, 195, INK)
     elif paused:
         lcd.fill_rect(38, 85, 164, 72, BG)
         lcd.text("PAUSED", 96, 95, INK)

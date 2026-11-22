@@ -141,7 +141,7 @@ def log_mask(seed, row, phase):
     # the player can enter a river without a permanent offset barrier.
     base = (log_section_value(seed, row) >> 8) % WIDTH
     # Small deterministic offsets vary each lane without a fixed staircase.
-    stagger = (log_lane_value(seed, row) >> 10) % 3 - 1
+    stagger = (log_lane_value(seed, row) >> 10) % 2
     origin = (base + stagger) % WIDTH
     offset = log_position(seed, row, phase) % WIDTH
     mask = 0
