@@ -3,6 +3,7 @@
 //! Grass-only until hazard physics matches the Python reference.
 
 pub mod world;
+pub mod game;
 
 pub const WIDTH: i16 = 12;
 pub const WINDOW_ROWS: usize = 16;
