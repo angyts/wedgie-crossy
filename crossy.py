@@ -760,7 +760,7 @@ def render_road_motion(lcd, world, phase, player_row, elapsed_ms, interval_ms):
         lcd.show_rect(0, sy, 240, STEP)
 
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None, previous_phase=None):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None, previous_phase=None, road_step=0):
     global _render_frames, _render_total_ms, _render_max_ms
     render_started = time.ticks_ms() if PROFILE_RENDER else 0
     if dirty_rows is None:
@@ -796,9 +796,22 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                 if mx + 16 <= 240:
                     lcd.fill_rect(mx, sy + 9, 16, 2, ROAD_MARK)
             cars = generated_mask(world.seed, absolute, phase)
+            # Full redraws (including joystick movement) must use the same
+            # pixel phase as cosmetic frames, or cars visibly snap backwards.
+            moving = (road_step > 0 and road_step < STEP
+                      and screen_row != WINDOW - 1 and absolute != row)
+            direction = worldgen.road_direction(world.seed, absolute) if moving else 0
+            clip = ClippedLCD(lcd, 0, sy, STEP)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
-                    draw_car(lcd, cx * STEP, sy, absolute, phase, world.seed)
+                    if moving:
+                        for wrap in (-240, 0, 240):
+                            px = cx * STEP + direction * road_step + wrap
+                            if -STEP < px < 240:
+                                draw_car(clip, px, sy, absolute, phase, world.seed,
+                                         identity_col=cx)
+                    else:
+                        draw_car(lcd, cx * STEP, sy, absolute, phase, world.seed)
             continue
         mask = world.mask(absolute)
         # Sparse deterministic ground details; never affect collisions.
@@ -1003,10 +1016,9 @@ def run():
                         else:
                             old_col = col
                             col = carried
-                            captured = animate_log_carry(lcd, world, old_col, row, score,
-                                                         best, facing, phase, next_phase, keys)
-                            if queued_direction is None:
-                                queued_direction = captured
+                            # Avoid four blocking full-screen flushes while
+                            # crossing logs. The next normal draw shows the
+                            # carried position; keep joystick polling live.
                     elif hazard_at(seed, row, col, phase):
                         # Unsupported at the OLD phase: genuine water death.
                         dead = True
@@ -1139,8 +1151,13 @@ def run():
                                 animate_crash(lcd, world, col, row, score, best, facing, phase)
                             crash_animated = True
                         else:
-                            draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead, phase=phase,
-                                   death_kind=death_kind)
+                            now = time.ticks_ms()
+                            interval_ms = traffic_interval(score) * FRAME_MS
+                            remaining = time.ticks_diff(next_traffic_at, now)
+                            road_step = pixel_offset(interval_ms - remaining, interval_ms, STEP)
+                            draw_world(lcd, world, col, row, score, best, paused, facing,
+                                       dead=dead, phase=phase, death_kind=death_kind,
+                                       road_step=road_step)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
