@@ -8,6 +8,14 @@ CENTER = 5
 BLOCK = 16
 MASK = (1 << WIDTH) - 1
 
+def count_bits(value):
+    """Count set bits without CPython-only int.bit_count()."""
+    count = 0
+    while value:
+        value &= value - 1
+        count += 1
+    return count
+
 def mix32(value):
     value &= 0xffffffff
     value ^= value >> 16
@@ -84,11 +92,11 @@ def lily_mask(seed, row):
     if lane > 0:
         previous = lily_route_col(seed, row - 1)
         mask |= 1 << previous
-    target = max(mask.bit_count(), 2 + value % 3)
+    target = max(count_bits(mask), 2 + value % 3)
     for step in range(WIDTH):
         col = (value + step * 5) % WIDTH
         mask |= 1 << col
-        if mask.bit_count() >= target:
+        if count_bits(mask) >= target:
             break
     return mask
 
