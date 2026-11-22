@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 7: pause, saved best score and progress milestones.
+"""Crossy hardware checkpoint 8: compact milestone HUD, red-button pause and menu-only restart.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -61,13 +61,17 @@ def score_for_row(best_row, y):
 def score_value(best_row):
     return (START_Y - (MIN_Y + best_row * STEP)) // STEP
 
-def draw_chicken(lcd, x, y):
+def draw_chicken(lcd, x, y, facing="right"):
     """Draw chicken inside the same 20-pixel tile used by tree collision."""
     x, y = x - MIN_X, y - MIN_Y
     lcd.fill_rect(x + 3, y + 5, 14, 11, CHICKEN)
     lcd.fill_rect(x + 6, y + 2, 9, 6, CHICKEN)
-    lcd.fill_rect(x + 15, y + 7, 4, 3, BEAK)
-    lcd.fill_rect(x + 12, y + 4, 2, 2, EYE)
+    if facing == "left":
+        lcd.fill_rect(x + 1, y + 7, 4, 3, BEAK)
+        lcd.fill_rect(x + 6, y + 4, 2, 2, EYE)
+    else:
+        lcd.fill_rect(x + 15, y + 7, 4, 3, BEAK)
+        lcd.fill_rect(x + 12, y + 4, 2, 2, EYE)
     lcd.fill_rect(x + 5, y + 16, 2, 3, BEAK)
     lcd.fill_rect(x + 13, y + 16, 2, 3, BEAK)
 
@@ -163,7 +167,7 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
@@ -176,18 +180,19 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False):
                 lcd.fill_rect(tx + 3, sy + 2, 14, 12, TREE_LEAVES)
     screen_y = (WINDOW - 1 - (row - world.first)) * STEP
     # draw_chicken accepts the stage-5 logical origin offset.
-    draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y)
-    lcd.fill_rect(0, 0, 240, 17, BG)
-    lcd.text("SCORE %d" % score, 4, 4, INK)
-    lcd.text("BEST %d" % best, 112, 4, INK)
-    lcd.text("A RESET", 176, 4, INK)
+    draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
+    # Compact HUD: a small two-pixel emphasis at every tenth row.
+    lcd.fill_rect(0, 0, 240, 18, BG)
+    lcd.text("SCORE %d" % score, 4, 5, INK)
+    if milestone(score):
+        # A subtle highlight behind the score; never cover gameplay.
+        lcd.fill_rect(2, 2, min(108, 56 + 8 * len(str(score))), 2, CHICKEN)
+    lcd.text("BEST %d" % best, 150, 5, INK)
     if paused:
-        lcd.fill_rect(50, 94, 140, 46, BG)
-        lcd.text("PAUSED", 96, 104, INK)
-        lcd.text("Y RESUME", 80, 122, INK)
-    elif milestone(score):
-        lcd.fill_rect(55, 100, 130, 20, BG)
-        lcd.text("ROW %d!" % score, 85, 106, INK)
+        lcd.fill_rect(38, 85, 164, 72, BG)
+        lcd.text("PAUSED", 96, 95, INK)
+        lcd.text("B RESUME", 78, 114, INK)
+        lcd.text("A NEW RUN", 74, 133, INK)
     lcd.show()
 
 def run():
@@ -208,51 +213,60 @@ def run():
         except (OSError, ValueError, TypeError) as exc:
             debug("best load failed: %r" % (exc,))
             best = 0
+        saved_best = best
         world = World(seed)
         col, row, score = START_COL, START_ROW, 0
         paused = False
-        draw_world(lcd, world, col, row, score, best)
+        facing = "right"
+        draw_world(lcd, world, col, row, score, best, paused, facing)
         debug("05 world shown, seed=%d" % seed)
         while True:
             for key in keys.pressed():
-                if key == "Y":
-                    paused = not paused
-                    debug("pause=%s" % paused)
-                    draw_world(lcd, world, col, row, score, best, paused)
+                if key == "Y" and not paused:
+                    paused = True
+                    debug("paused")
+                    draw_world(lcd, world, col, row, score, best, paused, facing)
                     break
                 if paused:
-                    break
-                if key == "A":
-                    if score > 0 and score == best:
-                        try:
-                            save.store("best", best)
-                        except OSError as exc:
-                            debug("best save failed: %r" % (exc,))
-                    world = World(seed)
-                    col, row, score = START_COL, START_ROW, 0
-                    debug("reset score=0")
-                    draw_world(lcd, world, col, row, score, best)
+                    if key in ("B", "Y"):
+                        paused = False
+                        debug("resumed")
+                        draw_world(lcd, world, col, row, score, best, paused, facing)
+                    elif key == "A":
+                        if score > saved_best:
+                            try:
+                                save.store("best", best)
+                                saved_best = best
+                            except OSError as exc:
+                                debug("best save failed: %r" % (exc,))
+                        world = World(seed)
+                        col, row, score = START_COL, START_ROW, 0
+                        facing = "right"
+                        paused = False
+                        debug("new run")
+                        draw_world(lcd, world, col, row, score, best, paused, facing)
                     break
                 if key in ("up", "down", "left", "right"):
                     nc, nr = move_world(world, col, row, key)
                     if (nc, nr) != (col, row):
                         col, row = nc, nr
+                        if key in ("left", "right"):
+                            facing = key
                         if row > score:
                             score = row
                             if score > best:
                                 best = score
-                                # Save only when a new ten-row milestone is reached,
-                                # or when the player resets. Avoid flash writes per move.
-                                if milestone(score):
-                                    try:
-                                        save.store("best", best)
-                                    except OSError as exc:
-                                        debug("best save failed: %r" % (exc,))
+                            if milestone(score) and best > saved_best:
+                                try:
+                                    save.store("best", best)
+                                    saved_best = best
+                                except OSError as exc:
+                                    debug("best save failed: %r" % (exc,))
                         if row - world.first > CAMERA_LEAD:
                             world.advance(row - CAMERA_LEAD)
                         debug("move %s row=%d col=%d score=%d window=%d..%d" %
                               (key, row, col, score, world.first, world.last))
-                        draw_world(lcd, world, col, row, score, best)
+                        draw_world(lcd, world, col, row, score, best, paused, facing)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break

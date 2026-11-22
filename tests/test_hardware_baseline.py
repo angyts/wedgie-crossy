@@ -181,7 +181,8 @@ class BootSmokeTests(unittest.TestCase):
                 sys.modules["time"] = old_time
         self.assertIn(("text", "SCORE 0"), screen.calls)
         self.assertIn(("text", "SCORE 0"), screen.calls)
-        self.assertIn(("text", "A RESET"), screen.calls)
+        self.assertIn(("text", "BEST 0"), screen.calls)
+        self.assertNotIn(("text", "A RESET"), screen.calls)
         rects = [c for c in screen.calls if c[0] == "fill_rect"]
         self.assertGreaterEqual(len(rects), 18)
         self.assertEqual(len([c for c in rects if c[3] == 240 and c[4] == 20]), 0)
