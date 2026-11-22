@@ -617,6 +617,12 @@ def run():
         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
         debug("05 world shown, seed=%d" % seed)
         while True:
+            # Capture short presses before any potentially slow LCD redraw.
+            # Preserve a pending log-carry direction rather than overwriting it.
+            if queued_direction is None:
+                early_inputs = keys.pressed()
+                if early_inputs:
+                    queued_direction = early_inputs[0]
             # Time-based scheduling. One cell maximum per update; a delayed
             # LCD frame cannot make cars skip several cells to catch up.
             if not paused and not dead and traffic_due(time.ticks_ms(), next_traffic_at):
@@ -752,7 +758,7 @@ def run():
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
-            time.sleep_ms(FRAME_MS)
+            time.sleep_ms(10)  # Input poll cadence; traffic still uses FRAME_MS.
     except Exception as exc:
         debug("ERROR: %r" % (exc,))
         import sys
