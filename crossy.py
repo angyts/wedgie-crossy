@@ -432,9 +432,23 @@ def draw_car(lcd, x, y, row=6, phase=0, seed=None, identity_col=None):
     body = car_color(row, x // STEP if identity_col is None else identity_col, phase, seed)
     length = car_length(row)
     left = (STEP - length) // 2
-    lcd.fill_rect(x + left, y + 5, length, 10, body)
-    lcd.fill_rect(x + 5, y + 2, 10, 7, body)
-    lcd.fill_rect(x + 7, y + 3, 6, 4, CAR_WINDOW)
+    style = car_style(row)
+    if style == 0:
+        # Compact hatchback, raised cabin and short hood.
+        lcd.fill_rect(x + left, y + 7, length, 8, body)
+        lcd.fill_rect(x + 5, y + 3, 9, 7, body)
+        lcd.fill_rect(x + 7, y + 4, 5, 4, CAR_WINDOW)
+    elif style == 1:
+        # Low sedan, longer hood and rear window.
+        lcd.fill_rect(x + left, y + 8, length, 7, body)
+        lcd.fill_rect(x + 6, y + 4, 9, 6, body)
+        lcd.fill_rect(x + 7, y + 5, 6, 3, CAR_WINDOW)
+        lcd.fill_rect(x + 2, y + 10, 3, 2, CAR_WINDOW)
+    else:
+        # Taller delivery van, with a boxy roof and side window.
+        lcd.fill_rect(x + left, y + 4, length, 11, body)
+        lcd.fill_rect(x + 4, y + 5, 6, 5, CAR_WINDOW)
+        lcd.fill_rect(x + 12, y + 7, 3, 2, CAR_WINDOW)
     lcd.fill_rect(x + 4, y + 15, 4, 3, CAR_WHEEL)
     lcd.fill_rect(x + 12, y + 15, 4, 3, CAR_WHEEL)
 
