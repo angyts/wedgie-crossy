@@ -27,6 +27,35 @@ class KeysStub:
         return ()
 
 class BootSmokeTests(unittest.TestCase):
+    def test_pure_movement_and_bounds(self):
+        fake_lcd = types.ModuleType("lcd")
+        fake_lcd.LCD = LCDStub
+        fake_lcd.Keys = KeysStub
+        fake_lcd.color = lambda r, g, b: (r, g, b)
+        old_lcd = sys.modules.get("lcd")
+        try:
+            sys.modules["lcd"] = fake_lcd
+            spec = importlib.util.spec_from_file_location("crossy_movement", APP)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            x, y = module.START_X, module.START_Y
+            self.assertEqual(module.moved(x, y, "left"), (x - 20, y))
+            self.assertEqual(module.moved(x, y, "right"), (x + 20, y))
+            self.assertEqual(module.moved(x, y, "up"), (x, y))
+            self.assertEqual(module.moved(x, y, "down"), (x, y + 20))
+            for _ in range(30):
+                x, y = module.moved(x, y, "right")
+            self.assertEqual(x, module.MAX_X)
+            for _ in range(30):
+                x, y = module.moved(x, y, "down")
+            self.assertEqual(y, module.MAX_Y)
+            self.assertEqual(module.moved(x, y, "A"), (x, y))
+        finally:
+            if old_lcd is None:
+                sys.modules.pop("lcd", None)
+            else:
+                sys.modules["lcd"] = old_lcd
+
     def test_entry_draws_ready_and_polls_input(self):
         screen = LCDStub()
         polls = []
@@ -60,7 +89,7 @@ class BootSmokeTests(unittest.TestCase):
             else:
                 sys.modules["time"] = old_time
         self.assertIn(("text", "READY"), screen.calls)
-        self.assertIn(("text", "STATIC CHICKEN"), screen.calls)
+        self.assertIn(("text", "JOYSTICK TEST"), screen.calls)
         rects = [c for c in screen.calls if c[0] == "fill_rect"]
         self.assertEqual(len(rects), 6)
         self.assertTrue(all(0 <= c[1] and 0 <= c[2] and c[1] + c[3] <= 240 and c[2] + c[4] <= 240 for c in rects))
