@@ -498,11 +498,27 @@ def draw_dead_chicken(lcd, kind, frame):
         lcd.fill_rect(x - 20, y + 7 + bob, 3, 2, SPLASH)
         lcd.fill_rect(x + 18, y + 5 + bob, 3, 2, SPLASH)
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0):
-    lcd.fill(GRASS_ALT)
+def dynamic_rows(world, player_row):
+    """Small fixed-size dirty row list; no persistent framebuffer copy."""
+    rows = [player_row]
+    for index in range(WINDOW):
+        absolute = world.first + index
+        kind = terrain_kind(world.seed, absolute)
+        if kind == "road" or kind == "logs":
+            if absolute != player_row:
+                rows.append(absolute)
+    return rows
+
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None):
+    if dirty_rows is None:
+        lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
         sy = (WINDOW - 1 - screen_row) * STEP
+        if dirty_rows is not None and absolute not in dirty_rows:
+            continue
+        if dirty_rows is not None:
+            lcd.fill_rect(0, sy, 240, STEP, GRASS_ALT)
         kind = terrain_kind(world.seed, absolute)
         if kind in ("logs", "lilies"):
             lcd.fill_rect(0, sy, 240, STEP, WATER)
@@ -557,7 +573,8 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     elif not dead:
         draw_chicken(lcd, MIN_X + col * STEP + chicken_dx, MIN_Y + screen_y, facing)
     # Minimal HUD. A tenth-row milestone briefly changes score color.
-    lcd.fill_rect(0, 0, 240, 20, BG)
+    if dirty_rows is None or score != best:
+        lcd.fill_rect(0, 0, 240, 20, BG)
     score_color = CHICKEN if milestone(score) else INK
     lcd.text("SCORE %d" % score, 4, 5, score_color)
     if milestone(score):
@@ -705,7 +722,8 @@ def run():
                     crash_animated = True
                 else:
                     draw_world(lcd, world, col, row, score, best, paused, facing,
-                               dead=False, phase=phase)
+                               dead=False, phase=phase,
+                               dirty_rows=dynamic_rows(world, row))
                 next_traffic_at = time.ticks_add(
                     time.ticks_ms(), traffic_interval(score) * FRAME_MS)
             if queued_direction is not None:
