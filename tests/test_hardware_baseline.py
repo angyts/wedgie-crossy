@@ -41,7 +41,7 @@ class BootSmokeTests(unittest.TestCase):
             x, y = module.START_X, module.START_Y
             self.assertEqual(module.moved(x, y, "left"), (x - 20, y))
             self.assertEqual(module.moved(x, y, "right"), (x + 20, y))
-            self.assertEqual(module.moved(x, y, "up"), (x, y))
+            self.assertEqual(module.moved(x, y, "up"), (x, y - 20))
             self.assertEqual(module.moved(x, y, "down"), (x, y + 20))
             for _ in range(30):
                 x, y = module.moved(x, y, "right")

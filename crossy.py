@@ -15,7 +15,7 @@ BEAK = color(245, 120, 40)
 EYE = color(18, 25, 20)
 STEP = 20
 START_X = 110
-START_Y = 169
+START_Y = 189
 MIN_X, MAX_X = 10, 210
 MIN_Y, MAX_Y = 169, 209
 
