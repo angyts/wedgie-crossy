@@ -17,7 +17,7 @@ class WorldGenTests(unittest.TestCase):
                 self.assertTrue(0<=width<=8)
                 if kind!="grass":
                     start=row-lane
-                    low,high=(1,2) if start<30 else (2,5) if start<70 else (5,8) if start<120 else (6,8)
+                    low,high=(1,2) if start<30 else (2,5) if start<70 else (5,7) if start<120 else (6,8)
                     self.assertTrue(low<=width<=high)
                 self.assertFalse(m.tree_mask(seed,row) & (1<<m.CENTER))
                 if kind=="lilies":

@@ -32,6 +32,6 @@ class TrafficVarietyTests(unittest.TestCase):
                         same+=1
                     else:opposite+=1
         self.assertEqual(directions,{-1,1})
-        self.assertEqual(periods,{1,2,3})
+        self.assertEqual(periods,{1,2})
         self.assertGreater(same,0)
         self.assertGreater(opposite,0)

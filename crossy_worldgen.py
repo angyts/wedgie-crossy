@@ -41,13 +41,13 @@ def section(seed, row):
     elif start < 70:
         low, high = 2, 5
     elif start < 120:
-        low, high = 5, 8
+        low, high = 5, 7
     else:
         low, high = 6, 8
     width = low + (value >> 8) % (high - low + 1)
     if offset >= width:
         return ("grass", 0, 0)
-    kind = ("road", "logs", "lilies")[value % 3]
+    kind = ("road", "road", "road", "logs", "lilies")[value % 5]
     return (kind, offset, width)
 
 def lily_route_col(seed, row):
@@ -127,8 +127,8 @@ def road_direction(seed, row):
     return -1 if mix32(seed ^ (row * 0x27d4eb2d)) & 1 else 1
 
 def road_period(seed, row):
-    """One tile per 1, 2 or 3 shared traffic updates."""
-    return 1 + mix32(seed ^ (row * 0x165667b1)) % 3
+    """One tile per 1 or 2 shared traffic updates."""
+    return 1 + mix32(seed ^ (row * 0x165667b1)) % 2
 
 def road_position(seed, row, phase):
     """Monotonic lane clock: never derive positions from score."""
