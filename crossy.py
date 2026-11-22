@@ -723,6 +723,10 @@ def render_road_motion(lcd, world, phase, player_row, elapsed_ms, interval_ms):
         return
     for index in range(WINDOW):
         absolute = world.first + index
+        # Screen row zero is reserved for the SCORE/BEST HUD.
+        # Never send an animated lane flush over that region.
+        if index == WINDOW - 1:
+            continue
         if absolute == player_row or terrain_kind(world.seed, absolute) != "road":
             continue
         old_mask = generated_mask(world.seed, absolute, phase)
