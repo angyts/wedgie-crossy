@@ -337,8 +337,13 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def car_color(row, col, phase=0):
+def car_color(row, col, phase=0, seed=None):
     """Color follows the vehicle from its original column, including wraps."""
+    if PROCEDURAL_WORLD and seed is not None:
+        lane = worldgen.section(seed, row)[1]
+        direction = -1 if lane & 1 else 1
+        origin = (col - phase * direction) % GRID_SIZE
+        return (CAR, CAR_BLUE, CAR_YELLOW)[(worldgen.mix32(seed ^ row) + origin // 3) % 3]
     origin = (col - phase * traffic_direction(row)) % GRID_SIZE
     return (CAR, CAR_BLUE, CAR_YELLOW)[(row // 12 + origin // 3) % 3]
 
@@ -392,9 +397,9 @@ def draw_lily(lcd, x, y):
     lcd.fill_rect(x + 6, y + 10, 3, 1, LILY_VEIN)
     lcd.fill_rect(x + 11, y + 12, 3, 1, LILY_VEIN)
 
-def draw_car(lcd, x, y, row=6, phase=0):
+def draw_car(lcd, x, y, row=6, phase=0, seed=None):
     """Compact vehicle silhouette with windshield and wheels."""
-    body = car_color(row, x // STEP, phase)
+    body = car_color(row, x // STEP, phase, seed)
     length = car_length(row)
     left = (STEP - length) // 2
     lcd.fill_rect(x + left, y + 5, length, 10, body)
@@ -441,7 +446,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             cars = generated_mask(world.seed, absolute, phase)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
-                    draw_car(lcd, cx * STEP, sy, absolute, phase)
+                    draw_car(lcd, cx * STEP, sy, absolute, phase, world.seed)
             continue
         mask = world.mask(absolute)
         for x in range(GRID_SIZE):
@@ -610,6 +615,7 @@ def run():
                 if dead:
                     if key == "A":
                         seed = new_run_seed(time.ticks_ms())
+                        seed = new_run_seed(time.ticks_ms()) if PROCEDURAL_WORLD else seed
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
                         phase = 0
@@ -649,7 +655,10 @@ def run():
                         draw_world(lcd, world, col, row, score, best, paused, facing)
                     break
                 if key in ("up", "down", "left", "right"):
-                    nc, nr = move_world(world, col, row, key)
+                    if PROCEDURAL_WORLD:
+                        nc, nr, _ = generated_move(world, col, row, key, phase)
+                    else:
+                        nc, nr = move_world(world, col, row, key)
                     if (nc, nr) != (col, row):
                         col, row = nc, nr
                         facing = key
