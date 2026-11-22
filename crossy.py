@@ -9,7 +9,7 @@ try:
 except ImportError:
     gc = None
 import crossy_worldgen as worldgen
-from traffic_motion import pixel_offset
+from crossy_traffic_motion import pixel_offset
 from lcd import LCD, Keys, color
 
 DEBUG = True
