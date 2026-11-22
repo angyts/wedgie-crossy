@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 9: high-contrast milestones and lightweight HUD improvements.
+"""Crossy hardware checkpoint 10: four-direction chicken and minimal HUD.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -61,17 +61,26 @@ def score_for_row(best_row, y):
 def score_value(best_row):
     return (START_Y - (MIN_Y + best_row * STEP)) // STEP
 
-def draw_chicken(lcd, x, y, facing="right"):
-    """Draw chicken inside the same 20-pixel tile used by tree collision."""
+def draw_chicken(lcd, x, y, facing="down"):
+    """Draw a 20px chicken facing the last successful movement direction."""
     x, y = x - MIN_X, y - MIN_Y
     lcd.fill_rect(x + 3, y + 5, 14, 11, CHICKEN)
     lcd.fill_rect(x + 6, y + 2, 9, 6, CHICKEN)
     if facing == "left":
         lcd.fill_rect(x + 1, y + 7, 4, 3, BEAK)
         lcd.fill_rect(x + 6, y + 4, 2, 2, EYE)
-    else:
+    elif facing == "right":
         lcd.fill_rect(x + 15, y + 7, 4, 3, BEAK)
         lcd.fill_rect(x + 12, y + 4, 2, 2, EYE)
+    elif facing == "down":
+        # Front: two eyes and a centered beak.
+        lcd.fill_rect(x + 7, y + 5, 2, 2, EYE)
+        lcd.fill_rect(x + 12, y + 5, 2, 2, EYE)
+        lcd.fill_rect(x + 9, y + 9, 3, 3, BEAK)
+    else:
+        # Back: a small tail, with no eyes or beak visible.
+        lcd.fill_rect(x + 8, y + 1, 4, 5, CHICKEN)
+        lcd.fill_rect(x + 9, y + 7, 2, 4, TREE_TRUNK)
     lcd.fill_rect(x + 5, y + 16, 2, 3, BEAK)
     lcd.fill_rect(x + 13, y + 16, 2, 3, BEAK)
 
@@ -181,29 +190,21 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     screen_y = (WINDOW - 1 - (row - world.first)) * STEP
     # draw_chicken accepts the stage-5 logical origin offset.
     draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
-    # Clear, legible HUD: no center-screen milestone interruption.
-    lcd.fill_rect(0, 0, 240, 24, BG)
-    score_text = str(score)
+    # Minimal HUD. A tenth-row milestone briefly changes score color.
+    lcd.fill_rect(0, 0, 240, 20, BG)
+    score_color = CHICKEN if milestone_active else INK
+    lcd.text("SCORE %d" % score, 4, 5, score_color)
     if milestone_active:
-        # Built-in 8px font: double-print with a 1px offset for bold effect.
-        lcd.text(score_text, 4, 4, CHICKEN)
-        lcd.text(score_text, 5, 4, CHICKEN)
-        lcd.text("x10", 4 + len(score_text) * 8 + 10, 4, CHICKEN)
-    else:
-        lcd.text(score_text, 4, 4, INK)
-    # Feature 1: subtle ten-row progress bar along the bottom of the HUD.
-    lcd.fill_rect(0, 21, (score % 10) * 24, 2, CHICKEN)
-    # Feature 2: highlight the best score only when this run matches it.
-    best_color = CHICKEN if score > 0 and score == best else INK
-    lcd.text("BEST %d" % best, 125, 4, best_color)
-    # Feature 3: on-screen pause affordance without a reset label.
-    if not paused:
-        lcd.text("Y", 224, 13, INK)
+        lcd.text("SCORE %d" % score, 5, 5, score_color)
+    lcd.text("BEST %d" % best, 145, 5, INK)
     if paused:
         lcd.fill_rect(38, 85, 164, 72, BG)
         lcd.text("PAUSED", 96, 95, INK)
-        lcd.text("B RESUME", 78, 114, INK)
-        lcd.text("A NEW RUN", 74, 133, INK)
+        # Colored button icons communicate physical controls without A/B jargon.
+        lcd.fill_rect(54, 117, 12, 12, color(230, 45, 55))
+        lcd.text("RESUME", 76, 119, INK)
+        lcd.fill_rect(54, 136, 12, 12, color(45, 205, 80))
+        lcd.text("NEW RUN", 76, 138, INK)
     lcd.show()
 
 def run():
@@ -228,7 +229,7 @@ def run():
         world = World(seed)
         col, row, score = START_COL, START_ROW, 0
         paused = False
-        facing = "right"
+        facing = "down"
         milestone_until = None
         draw_world(lcd, world, col, row, score, best, paused, facing)
         debug("05 world shown, seed=%d" % seed)
@@ -263,8 +264,7 @@ def run():
                     nc, nr = move_world(world, col, row, key)
                     if (nc, nr) != (col, row):
                         col, row = nc, nr
-                        if key in ("left", "right"):
-                            facing = key
+                        facing = key
                         if row > score:
                             score = row
                             if milestone(score):
