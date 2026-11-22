@@ -1,11 +1,12 @@
-"""Fixed-point tick transitions for grass, roads and moving logs.
+"""Fixed-point tick transitions for grass, roads, moving logs and trains.
 
 Player moves are instantaneous at tick start. Hazards then advance for
-one tick. This is a provisional simulation contract. Railways are
-explicitly unsupported; no runtime or fairness certification exists.
+one tick. This is a provisional simulation contract. Train warnings prevent entry; existing occupants can remain if safe.
+No runtime or fairness certification exists.
 """
-from .patterns import WIDTH, GRASS, ROAD, RIVER
+from .patterns import WIDTH, GRASS, ROAD, RIVER, RAIL
 from .physics import SUBTILE, BOARD_UNITS, swept_overlap, carry_on_log
+from .railway import check_schedule, warning_active, train_collision
 
 MOVES = ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1))
 
@@ -23,8 +24,8 @@ def step_fp(rows, position, tick, direction):
     if not (type(y) is int and type(x) is int
             and 0 <= y < len(rows) and 0 <= x <= BOARD_UNITS - SUBTILE):
         raise ValueError("invalid position")
-    if any(row.kind not in (GRASS, ROAD, RIVER) for row in rows):
-        raise NotImplementedError("railway physics not yet integrated")
+    if any(row.kind not in (GRASS, ROAD, RIVER, RAIL) for row in rows):
+        raise ValueError("unknown terrain")
     dy, dx = direction
     ny, nx = y + dy, x + dx * SUBTILE
     if not (0 <= ny < len(rows) and 0 <= nx <= BOARD_UNITS - SUBTILE):
@@ -45,6 +46,13 @@ def step_fp(rows, position, tick, direction):
                                   target.length * SUBTILE,
                                   target.spacing * SUBTILE, velocity)
         return None if collision else (ny, nx)
+    if target.kind == RAIL:
+        check_schedule(target)
+        if train_collision(target, nx, tick):
+            return None
+        if ny != y and warning_active(target, tick):
+            return None
+        return (ny, nx)
     carried = carry_on_log(
         nx, (target.phase + target.direction * target.speed * tick) * SUBTILE,
         target.length, target.spacing, target.direction * target.speed * SUBTILE)

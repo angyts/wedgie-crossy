@@ -35,10 +35,26 @@ class FixedPointSimulationTests(unittest.TestCase):
                                    speed=2, spacing=12, length=3, phase=10)]
         self.assertIsNone(step_fp(rows, (0, 11*SUBTILE), 0, (1, 0)))
 
-    def test_rail_explicitly_unsupported(self):
+    def test_rail_clear_entry(self):
+        rows = [Row(0, GRASS), Row(1, RAIL, direction=1, speed=2,
+                                   length=3, period=30, warning=4)]
+        self.assertEqual(step_fp(rows, (0, 5*SUBTILE), 15, (1, 0)),
+                         (1, 5*SUBTILE))
+
+    def test_rail_warning_blocks_entry(self):
+        rows = [Row(0, GRASS), Row(1, RAIL, direction=1, speed=2,
+                                   length=3, period=30, warning=4)]
+        self.assertIsNone(step_fp(rows, (0, 5*SUBTILE), 27, (1, 0)))
+
+    def test_rail_swept_collision(self):
+        rows = [Row(0, GRASS), Row(1, RAIL, direction=1, speed=8,
+                                   length=3, period=30, warning=4)]
+        self.assertIsNone(step_fp(rows, (0, 2*SUBTILE), 0, (1, 0)))
+
+    def test_rail_invalid_schedule(self):
         rows = [Row(0, GRASS), Row(1, RAIL, direction=1, speed=1,
-                                   length=2, period=12, warning=3)]
-        with self.assertRaises(NotImplementedError):
+                                   length=3, period=12, warning=3)]
+        with self.assertRaises(ValueError):
             step_fp(rows, (0, 5*SUBTILE), 0, (1, 0))
 
     def test_bad_inputs(self):

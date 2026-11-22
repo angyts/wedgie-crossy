@@ -31,12 +31,19 @@ class SharedFPValidatorTests(unittest.TestCase):
         self.assertFalse(validate_fp(rows, horizon=3, reaction_ticks=2))
         self.assertTrue(validate_fp(rows, horizon=4, reaction_ticks=2))
 
-    def test_rail_not_supported(self):
+    def test_rail_crossing(self):
         rows = [Row(0, GRASS),
-                Row(1, RAIL, direction=1, speed=1,
-                    length=2, period=12, warning=3)]
-        with self.assertRaises(NotImplementedError):
-            validate_fp(rows)
+                Row(1, RAIL, direction=1, speed=2,
+                    length=3, period=30, warning=4),
+                Row(2, GRASS)]
+        self.assertTrue(validate_fp(rows, entry_phases=(12, 15), horizon=3))
+
+    def test_rail_warning_delays_crossing(self):
+        rows = [Row(0, GRASS),
+                Row(1, RAIL, direction=1, speed=2,
+                    length=3, period=30, warning=4),
+                Row(2, GRASS)]
+        self.assertFalse(validate_fp(rows, entry_phases=(27,), horizon=2))
 
     def test_bad_entry(self):
         with self.assertRaises(ValueError):

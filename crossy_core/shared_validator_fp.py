@@ -1,10 +1,10 @@
 """Experimental reachability using the same fixed-point tick transition as gameplay.
 
-Supports grass, roads and rivers; railway support is deliberately rejected.
+Supports grass, roads, rivers and railways with shared tick transitions.
 All starting positions are on grass. Results depend on sampled phases,
 finite horizon and instantaneous player movement; NOT fairness certification.
 """
-from .patterns import GRASS, ROAD, RIVER, WIDTH
+from .patterns import GRASS, ROAD, RIVER, RAIL, WIDTH
 from .physics import SUBTILE
 from .simulation_fp import step_fp, MOVES
 
@@ -14,8 +14,8 @@ def validate_fp(rows, entry_columns=(5,), entry_phases=(0,),
         raise ValueError("invalid rows/horizon")
     if any(row.index != rows[0].index + i for i, row in enumerate(rows)):
         raise ValueError("noncontiguous rows")
-    if any(row.kind not in (GRASS, ROAD, RIVER) for row in rows):
-        raise NotImplementedError("railway simulation pending")
+    if any(row.kind not in (GRASS, ROAD, RIVER, RAIL) for row in rows):
+        raise ValueError("unknown terrain")
     if rows[0].kind != GRASS:
         raise ValueError("entry row must be grass")
     if not entry_columns or any(type(c) is not int or not 0 <= c < WIDTH
