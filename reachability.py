@@ -5,7 +5,7 @@ may wait or take one orthogonal step. This is a simplified model, not an
 exact simulation of the device's wall-clock input and LCD timing.
 """
 from collections import deque
-import worldgen as w
+import crossy_worldgen as w
 
 def safe(seed, row, col, phase):
     if not 0 <= col < w.WIDTH or row < 0:

@@ -9,7 +9,7 @@ ROOT=Path(__file__).resolve().parents[1]
 class DevicePreflight(unittest.TestCase):
     def test_manifest_includes_worldgen(self):
         manifest=json.loads((ROOT/"wedgie.json").read_text())
-        self.assertIn("worldgen.py",manifest["apps"][0]["files"])
+        self.assertIn("crossy_worldgen.py",manifest["apps"][0]["files"])
         self.assertIn("crossy.py",manifest["apps"][0]["files"])
     def test_carry_animation_matches_lane_direction(self):
         lcd=types.ModuleType("lcd")

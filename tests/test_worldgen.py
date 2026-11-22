@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 spec=importlib.util.spec_from_file_location(
-    "worldgen",Path(__file__).resolve().parents[1]/"worldgen.py")
+    "crossy_worldgen",Path(__file__).resolve().parents[1]/"crossy_worldgen.py")
 m=importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 

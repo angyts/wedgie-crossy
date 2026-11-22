@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import reachability as r
-import worldgen as w
+import crossy_worldgen as w
 
 class ReachabilityTests(unittest.TestCase):
     def test_static_lily_crossings(self):
