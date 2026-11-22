@@ -216,7 +216,7 @@ def generated_carry(seed, row, col):
     kind, lane, width = worldgen.section(seed, row)
     if kind != "logs":
         return col
-    new_col = col + (-1 if lane & 1 else 1)
+    new_col = col + worldgen.log_direction(seed, row)
     return new_col if 0 <= new_col < GRID_SIZE else None
 
 def is_river(row):
@@ -478,6 +478,26 @@ def draw_log_runs(lcd, mask, sy):
         lcd.fill_rect(left + width - 4, sy + 9, 2, 4, LOG_GRAIN)
         col += 1
 
+def draw_dead_chicken(lcd, kind, frame):
+    """Small animated portrait above the game-over message."""
+    x, y = 106, 78
+    if kind == "road":
+        # Flattened chicken; compressed further over crash frames.
+        height = max(5, 12 - frame)
+        lcd.fill_rect(x - 13, y + 12 - height, 27, height, CHICKEN)
+        lcd.fill_rect(x + 13, y + 12 - height, 6, 3, BEAK)
+        lcd.fill_rect(x - 5, y + 9 - height, 2, 2, EYE)
+        lcd.fill_rect(x + 3, y + 9 - height, 2, 2, EYE)
+    else:
+        # Partially submerged chicken with animated waterline.
+        bob = frame % 3
+        lcd.fill_rect(x - 9, y + bob, 18, 13, CHICKEN)
+        lcd.fill_rect(x + 9, y + 5 + bob, 5, 3, BEAK)
+        lcd.fill_rect(x + 3, y + 4 + bob, 2, 2, EYE)
+        lcd.fill_rect(x - 16, y + 10 + bob, 34, 3, WATER_RIPPLE)
+        lcd.fill_rect(x - 20, y + 7 + bob, 3, 2, SPLASH)
+        lcd.fill_rect(x + 18, y + 5 + bob, 3, 2, SPLASH)
+
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
@@ -545,17 +565,18 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     lcd.text("BEST %d" % best, 145, 5, INK)
     if dead:
         lcd.fill_rect(8, 73, 224, 112, BG)
+        draw_dead_chicken(lcd, "water" if death_kind in ("water", "offscreen") else "road", crash_frame or water_frame or phase)
         if death_kind == "water":
-            lcd.text("ALWAYS WATCH", 56, 84, INK)
-            lcd.text("WHERE YOU STEP", 48, 104, INK)
+            lcd.text("ALWAYS WATCH", 56, 101, INK)
+            lcd.text("WHERE YOU STEP", 48, 116, INK)
         elif death_kind == "offscreen":
-            lcd.text("MUST ALWAYS", 65, 84, INK)
-            lcd.text("BE DECISIVE", 70, 104, INK)
+            lcd.text("MUST ALWAYS", 65, 101, INK)
+            lcd.text("BE DECISIVE", 70, 116, INK)
         else:
-            lcd.text("ALWAYS LOOK", 64, 84, INK)
-            lcd.text("BEFORE YOU", 68, 100, INK)
-            lcd.text("CROSS THE ROAD", 49, 116, INK)
-        lcd.text("YOUR SCORE: %d" % score, 57, 139, CHICKEN)
+            lcd.text("ALWAYS LOOK", 64, 101, INK)
+            lcd.text("BEFORE YOU", 68, 114, INK)
+            lcd.text("CROSS THE ROAD", 49, 127, INK)
+        lcd.text("YOUR SCORE: %d" % score, 57, 147, CHICKEN)
         lcd.fill_rect(48, 161, 12, 12, color(45, 205, 80))
         lcd.text("NEW RUN", 70, 163, INK)
     elif paused:
@@ -580,8 +601,7 @@ def animate_log_carry(lcd, world, old_col, row, score, best, facing,
                       old_phase, new_phase, keys):
     """Four visual substeps; logical collision remains grid-based."""
     if PROCEDURAL_WORLD:
-        lane = worldgen.section(world.seed, row)[1]
-        direction = -1 if lane & 1 else 1
+        direction = worldgen.log_direction(world.seed, row)
     else:
         direction = -1 if (row // 24) & 1 else 1
     # Poll before rendering, not after: a hop off the log takes priority.
@@ -652,7 +672,7 @@ def run():
                 if terrain_kind(seed, row) in ("logs", "lilies"):
                     if terrain_kind(seed, row) == "lilies" and not hazard_at(seed, row, col, phase):
                         pass  # Stationary pad: do not carry the chicken.
-                    elif not hazard_at(seed, row, col, phase):
+                    elif not hazard_at(seed, row, col, phase) and (not PROCEDURAL_WORLD or worldgen.log_position(seed, row, next_phase) != worldgen.log_position(seed, row, phase)):
                         carried = generated_carry(seed, row, col) if PROCEDURAL_WORLD else carry_on_log(row, col, phase)
                         if carried is None:
                             dead = True

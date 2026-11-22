@@ -110,12 +110,20 @@ def lily_mask(seed, row):
             break
     return mask
 
+def log_direction(seed, row):
+    return -1 if mix32(seed ^ (row * 0x7f4a7c15)) & 1 else 1
+
+def log_period(seed, row):
+    return 1 + mix32(seed ^ (row * 0x165667b1)) % 2
+
+def log_position(seed, row, phase):
+    return (phase // log_period(seed, row)) * log_direction(seed, row)
+
 def log_mask(seed, row, phase):
     kind, lane, width = section(seed, row)
     if kind != "logs":
         return 0
-    direction = -1 if lane & 1 else 1
-    offset = (phase * direction) % WIDTH
+    offset = log_position(seed, row, phase) % WIDTH
     origin = mix32(seed ^ row) % WIDTH
     mask = 0
     for start in (origin, (origin + 6) % WIDTH):

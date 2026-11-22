@@ -45,9 +45,8 @@ def crossing_possible(seed, block, max_ticks=160):
         next_phase = (phase + 1) % 24
         kind = w.section(seed, row)[0]
         carried = col
-        if kind == "logs":
-            direction = -1 if w.section(seed, row)[1] & 1 else 1
-            carried += direction
+        if kind == "logs" and w.log_position(seed,row,next_phase) != w.log_position(seed,row,phase):
+            carried += w.log_direction(seed,row)
             if not 0 <= carried < w.WIDTH:
                 continue
         # The player's old position must remain safe until the next phase.
