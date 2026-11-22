@@ -1,0 +1,1 @@
+Fixes the case where an expired 65ms cosmetic animation budget skipped input polling entirely. The preview now polls before the first frame and at each substep before checking the budget. An input returns immediately; rendering remains optional and collision timing is unchanged. Validate full host suite and hardware responsiveness.

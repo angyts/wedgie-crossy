@@ -613,7 +613,14 @@ def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
     pending = None
     started = time.ticks_ms() if hasattr(time, "ticks_ms") else None
     previous_step = 0
+    # Input has priority even if a slow LCD already exhausted the budget.
+    pressed = keys.pressed()
+    if pressed:
+        return pressed[0]
     for target_step in SMOOTH_STEPS:
+        pressed = keys.pressed()
+        if pressed:
+            return pressed[0]
         if started is None:
             step = target_step
         else:
