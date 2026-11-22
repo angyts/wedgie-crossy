@@ -895,7 +895,11 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             if world.first <= absolute <= world.last:
                 sy = (WINDOW - 1 - (absolute - world.first)) * STEP
                 kind = terrain_kind(world.seed, absolute)
-                if previous_phase is not None and kind in ("road", "logs"):
+                if previous_phase is not None and kind == "logs":
+                    # One row transfer is cheaper than many SPI calls for
+                    # fragmented log masks. It also clears vacated pixels.
+                    lcd.show_rect(0, sy, 240, STEP)
+                elif previous_phase is not None and kind == "road":
                     # Both old and new footprints must be transferred: old
                     # sprites disappear and new sprites become visible.
                     changed = (generated_mask(world.seed, absolute, previous_phase) |
