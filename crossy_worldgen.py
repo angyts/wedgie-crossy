@@ -5,7 +5,7 @@ All terrain decisions are reproducible from a 32-bit seed and absolute row.
 """
 WIDTH = 12
 CENTER = 5
-BLOCK = 16
+BLOCK = 12
 MASK = (1 << WIDTH) - 1
 
 def count_bits(value):
@@ -30,12 +30,12 @@ def section(seed, row):
     Blocks contain a hazard section followed by a grass buffer. A single
     section is never more than 8 rows, leaving room to preview terrain.
     """
-    if row < 16:
+    if row < 8:
         return ("grass", 0, 0)
-    index = (row - 16) // BLOCK
-    offset = (row - 16) % BLOCK
+    index = (row - 8) // BLOCK
+    offset = (row - 8) % BLOCK
     value = mix32(seed ^ (index * 0x9e3779b9))
-    start = 16 + index * BLOCK
+    start = 8 + index * BLOCK
     if start < 30:
         low, high = 1, 2
     elif start < 70:
@@ -54,7 +54,7 @@ def lily_route_col(seed, row):
     kind, lane, width = section(seed, row)
     if kind != "lilies":
         return None
-    block = (row - 16) // BLOCK
+    block = (row - 8) // BLOCK
     value = mix32(seed ^ (block * 0x6d2b79f5))
     col = 2 + value % (WIDTH - 4)
     for i in range(lane):

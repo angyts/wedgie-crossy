@@ -50,6 +50,9 @@ LILY_LIGHT = color(85, 195, 95)
 WATER_RIPPLE = color(65, 135, 195)
 TREE_HIGHLIGHT = color(28, 90, 38)
 SHOULDER = color(95, 105, 75)
+FLOWER = color(240, 205, 100)
+GRASS_PATCH = color(35, 118, 60)
+PEBBLE = color(135, 150, 120)
 # Fixed positions (column, row) for repeatable hardware verification.
 TREES = ((6, 9), (4, 8), (2, 6), (9, 7), (8, 4), (3, 3))
 START_X = 110
@@ -453,6 +456,18 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                     draw_car(lcd, cx * STEP, sy, absolute, phase, world.seed)
             continue
         mask = world.mask(absolute)
+        # Sparse deterministic ground details; never affect collisions.
+        for x in range(GRID_SIZE):
+            if not (mask & (1 << x)):
+                detail = worldgen.mix32(world.seed ^ (absolute * 131) ^ (x * 7919)) % 19
+                px = x * STEP
+                if detail == 0:
+                    lcd.fill_rect(px + 5, sy + 10, 9, 4, GRASS_PATCH)
+                elif detail == 1:
+                    lcd.fill_rect(px + 10, sy + 9, 3, 3, FLOWER)
+                    lcd.fill_rect(px + 11, sy + 12, 1, 3, TREE_HIGHLIGHT)
+                elif detail == 2:
+                    lcd.fill_rect(px + 8, sy + 13, 5, 2, PEBBLE)
         for x in range(GRID_SIZE):
             if mask & (1 << x):
                 tx = x * STEP
