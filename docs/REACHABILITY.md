@@ -1,0 +1,3 @@
+# Time-expanded reachability prototype
+
+Host-only finite search over (row, column, traffic phase) with one action per phase, including waiting and log carrying. It checks a single 16-row section at a time, not an entire run. Run `python -m unittest tests/test_reachability.py -v` and `python -c 'import reachability; print(reachability.scan(1000,8)[:30])'` to inspect failures. This is intentionally not a proof of real-time playability: LCD rendering, asynchronous joystick presses, score-dependent speeds, and full-world transitions are not modeled. Do not enable PROCEDURAL_WORLD or merge into main based on this test alone.
