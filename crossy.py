@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 3: visible grass grid and aligned movement.
+"""Crossy hardware checkpoint 4: fixed trees and blocking collisions.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -16,6 +16,10 @@ EYE = color(18, 25, 20)
 STEP = 20
 GRID_SIZE = 12
 GRASS_ALT = color(27, 105, 53)
+TREE_TRUNK = color(105, 64, 28)
+TREE_LEAVES = color(13, 65, 28)
+# Fixed positions (column, row) for repeatable hardware verification.
+TREES = ((6, 9), (4, 8), (2, 6), (9, 7), (8, 4), (3, 3))
 START_X = 110
 START_Y = 189
 MIN_X, MAX_X = 10, 210
@@ -32,6 +36,21 @@ def moved(x, y, key):
     elif key == "down":
         y += STEP
     return max(MIN_X, min(MAX_X, x)), max(MIN_Y, min(MAX_Y, y))
+
+def try_move(x, y, key):
+    """Return the old position when the target tile contains a tree."""
+    nx, ny = moved(x, y, key)
+    col = (nx - MIN_X) // STEP
+    row = (ny - 9) // STEP
+    if (col, row) in TREES:
+        return x, y
+    return nx, ny
+
+def draw_trees(lcd):
+    for col, row in TREES:
+        tx, ty = col * STEP, row * STEP
+        lcd.fill_rect(tx + 8, ty + 11, 4, 7, TREE_TRUNK)
+        lcd.fill_rect(tx + 3, ty + 2, 14, 12, TREE_LEAVES)
 
 def draw_chicken(lcd, x, y):
     """Compact chicken centered in one 20-pixel grass tile."""
@@ -57,7 +76,8 @@ def draw_scene(lcd, x, y):
     lcd.fill(BG)
     draw_grid(lcd)
     lcd.text("WEDGIE CROSSY", 48, 4, INK)
-    lcd.text("GRID TEST", 80, 16, INK)
+    lcd.text("TREES + BLOCK", 68, 16, INK)
+    draw_trees(lcd)
     draw_chicken(lcd, x, y)
     lcd.show()
 
@@ -70,18 +90,20 @@ def run():
         lcd = LCD()
         debug("03 creating Keys")
         keys = Keys()
-        debug("04 drawing 12x12 grass grid")
+        debug("04 drawing fixed trees and grass grid")
         x, y = START_X, START_Y
         draw_scene(lcd, x, y)
         debug("05 frame shown; polling directional presses")
         while True:
             for key in keys.pressed():
                 if key in ("up", "down", "left", "right"):
-                    next_x, next_y = moved(x, y, key)
+                    next_x, next_y = try_move(x, y, key)
                     if (next_x, next_y) != (x, y):
                         x, y = next_x, next_y
                         debug("move %s -> %d,%d" % (key, x, y))
                         draw_scene(lcd, x, y)
+                    else:
+                        debug("blocked %s at %d,%d" % (key, x, y))
                     break
             time.sleep_ms(FRAME_MS)
     except Exception as exc:

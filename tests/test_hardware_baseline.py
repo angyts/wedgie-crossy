@@ -61,6 +61,30 @@ class BootSmokeTests(unittest.TestCase):
             else:
                 sys.modules["lcd"] = old_lcd
 
+    def test_tree_collisions_and_open_route(self):
+        fake_lcd = types.ModuleType("lcd")
+        fake_lcd.LCD = LCDStub
+        fake_lcd.Keys = KeysStub
+        fake_lcd.color = lambda r, g, b: (r, g, b)
+        old_lcd = sys.modules.get("lcd")
+        try:
+            sys.modules["lcd"] = fake_lcd
+            spec = importlib.util.spec_from_file_location("crossy_tree_collision", APP)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            x, y = module.START_X, module.START_Y
+            self.assertEqual(module.try_move(x, y, "right"), (x, y))
+            self.assertEqual(module.try_move(x, y, "up"), (x, y - 20))
+            self.assertEqual(module.try_move(x, y - 20, "left"), (x, y - 20))
+            self.assertEqual(module.try_move(x, y, "left"), (x - 20, y))
+            self.assertNotIn(((x - 10) // 20, (y - 9) // 20), module.TREES)
+            self.assertEqual(len(module.TREES), len(set(module.TREES)))
+        finally:
+            if old_lcd is None:
+                sys.modules.pop("lcd", None)
+            else:
+                sys.modules["lcd"] = old_lcd
+
     def test_entry_draws_ready_and_polls_input(self):
         screen = LCDStub()
         polls = []
@@ -94,9 +118,9 @@ class BootSmokeTests(unittest.TestCase):
             else:
                 sys.modules["time"] = old_time
         self.assertIn(("text", "WEDGIE CROSSY"), screen.calls)
-        self.assertIn(("text", "GRID TEST"), screen.calls)
+        self.assertIn(("text", "TREES + BLOCK"), screen.calls)
         rects = [c for c in screen.calls if c[0] == "fill_rect"]
-        self.assertEqual(len(rects), 78)
+        self.assertEqual(len(rects), 90)
         self.assertEqual(len([c for c in rects if c[3] == 20 and c[4] == 20]), 72)
         self.assertTrue(all(0 <= c[1] and 0 <= c[2] and c[1] + c[3] <= 240 and c[2] + c[4] <= 240 for c in rects))
         self.assertEqual(sum(c[0] == "show" for c in screen.calls), 1)
