@@ -99,8 +99,19 @@ mod tests {
     #[test] fn camera_pressure() {
         let mut c = Camera::new(1, 1, -1);
         assert!(!c.update(0, 1));
-        assert!(!c.update(0, 2));
+        assert!(c.update(0, 2));
+        assert_eq!(c.boundary, 0);
         assert!(c.update(0, 3));
+    }
+    #[test] fn camera_progress_resets_inactivity_clock() {
+        let mut c = Camera::new(1, 1, -1);
+        assert!(!c.update(0, 1));
+        assert!(!c.update(1, 2));
+        assert_eq!(c.boundary, -1);
+        assert!(!c.update(1, 3));
+        assert!(!c.update(1, 4));
+        assert_eq!(c.boundary, 0);
+        assert!(c.update(1, 5));
     }
     #[test] fn no_heap_required() {
         assert!(core::mem::size_of::<Player>() <= 8);
