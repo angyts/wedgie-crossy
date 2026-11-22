@@ -11,7 +11,9 @@ FRAME_MS = 100
 # Development mode never reads or writes the persistent high score.
 # Switch to False for release builds after hardware validation.
 DEV_MODE = True
-TRAFFIC_TICKS = 6
+TRAFFIC_TICKS = 3
+CRASH_FRAMES = 5
+CRASH_FRAME_MS = 90
 BG = color(22, 90, 45)
 INK = color(245, 245, 230)
 CHICKEN = color(255, 215, 70)
@@ -25,6 +27,9 @@ TREE_LEAVES = color(13, 65, 28)
 ROAD = color(65, 68, 72)
 ROAD_MARK = color(180, 175, 115)
 CAR = color(210, 55, 45)
+CAR_WINDOW = color(125, 190, 205)
+CAR_WHEEL = color(25, 30, 35)
+STAR = color(255, 210, 40)
 # Fixed positions (column, row) for repeatable hardware verification.
 TREES = ((6, 9), (4, 8), (2, 6), (9, 7), (8, 4), (3, 3))
 START_X = 110
@@ -210,7 +215,22 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0):
+def draw_car(lcd, x, y):
+    """Compact vehicle silhouette with windshield and wheels."""
+    lcd.fill_rect(x + 2, y + 5, 16, 10, CAR)
+    lcd.fill_rect(x + 5, y + 2, 10, 7, CAR)
+    lcd.fill_rect(x + 7, y + 3, 6, 4, CAR_WINDOW)
+    lcd.fill_rect(x + 4, y + 15, 4, 3, CAR_WHEEL)
+    lcd.fill_rect(x + 12, y + 15, 4, 3, CAR_WHEEL)
+
+def draw_crash_star(lcd, x, y, frame):
+    """Five-frame pixel starburst, clipped to the 240px screen."""
+    size = 3 + frame * 2
+    cx, cy = x + 10, y + 10
+    lcd.fill_rect(max(0, cx - size), cy - 2, min(240 - max(0, cx - size), size * 2), 4, STAR)
+    lcd.fill_rect(cx - 2, max(0, cy - size), 4, min(240 - max(0, cy - size), size * 2), STAR)
+
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
@@ -222,7 +242,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             cars = moving_car_mask(world.seed, absolute, phase)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
-                    lcd.fill_rect(cx * STEP + 2, sy + 3, 16, 14, CAR)
+                    draw_car(lcd, cx * STEP, sy)
             continue
         mask = world.mask(absolute)
         for x in range(GRID_SIZE):
@@ -232,7 +252,10 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                 lcd.fill_rect(tx + 3, sy + 2, 14, 12, TREE_LEAVES)
     screen_y = (WINDOW - 1 - (row - world.first)) * STEP
     # draw_chicken accepts the stage-5 logical origin offset.
-    draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
+    if dead and crash_frame:
+        draw_crash_star(lcd, col * STEP, screen_y, crash_frame)
+    elif not dead:
+        draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
     # Minimal HUD. A tenth-row milestone briefly changes score color.
     lcd.fill_rect(0, 0, 240, 20, BG)
     score_color = CHICKEN if milestone(score) else INK
@@ -241,10 +264,13 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.text("SCORE %d" % score, 5, 5, score_color)
     lcd.text("BEST %d" % best, 145, 5, INK)
     if dead:
-        lcd.fill_rect(35, 85, 170, 72, BG)
-        lcd.text("CRASH!", 95, 95, INK)
-        lcd.fill_rect(54, 119, 12, 12, color(45, 205, 80))
-        lcd.text("NEW RUN", 76, 121, INK)
+        lcd.fill_rect(8, 73, 224, 112, BG)
+        lcd.text("ALWAYS LOOK", 64, 84, INK)
+        lcd.text("BEFORE YOU", 68, 100, INK)
+        lcd.text("CROSS THE ROAD", 49, 116, INK)
+        lcd.text("YOUR SCORE: %d" % score, 57, 139, CHICKEN)
+        lcd.fill_rect(48, 161, 12, 12, color(45, 205, 80))
+        lcd.text("NEW RUN", 70, 163, INK)
     elif paused:
         lcd.fill_rect(38, 85, 164, 72, BG)
         lcd.text("PAUSED", 96, 95, INK)
@@ -254,6 +280,13 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.fill_rect(54, 136, 12, 12, color(45, 205, 80))
         lcd.text("NEW RUN", 76, 138, INK)
     lcd.show()
+
+def animate_crash(lcd, world, col, row, score, best, facing, phase):
+    """Brief non-blocking-to-firmware animation with a bounded duration."""
+    for frame in range(1, CRASH_FRAMES + 1):
+        draw_world(lcd, world, col, row, score, best, False, facing,
+                   dead=True, phase=phase, crash_frame=frame)
+        time.sleep_ms(CRASH_FRAME_MS)
 
 def run():
     import save  # Firmware-only module; host logic tests can import crossy without it.
@@ -286,6 +319,7 @@ def run():
         dead = False
         traffic_tick = 0
         phase = 0
+        crash_animated = False
         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
         debug("05 world shown, seed=%d" % seed)
         while True:
@@ -296,10 +330,15 @@ def run():
                 if next_phase != phase:
                     if is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
                         dead = True
+                        crash_animated = False
                         debug("traffic collision row=%d col=%d" % (row, col))
                     phase = next_phase
-                    draw_world(lcd, world, col, row, score, best, paused, facing,
-                               dead=dead, phase=phase)
+                    if dead:
+                        animate_crash(lcd, world, col, row, score, best, facing, phase)
+                        crash_animated = True
+                    else:
+                        draw_world(lcd, world, col, row, score, best, paused, facing,
+                                   dead=False, phase=phase)
             for key in keys.pressed():
                 if dead:
                     if key == "A":
@@ -308,6 +347,7 @@ def run():
                         traffic_tick, phase = 0, 0
                         facing = "down"
                         dead = False
+                        crash_animated = False
                         draw_world(lcd, world, col, row, score, best, False, facing, phase=phase)
                     break
                 if key == "Y" and not paused:
@@ -341,6 +381,8 @@ def run():
                         col, row = nc, nr
                         facing = key
                         dead = road_hit(seed, row, col, phase)
+                        if dead:
+                            crash_animated = False
                         if row > score:
                             score = row
                             if score > best:
@@ -357,7 +399,11 @@ def run():
                                     saved_best = best
                                 except OSError as exc:
                                     debug("best save failed: %r" % (exc,))
-                        draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead, phase=phase)
+                        if dead and not crash_animated:
+                            animate_crash(lcd, world, col, row, score, best, facing, phase)
+                            crash_animated = True
+                        else:
+                            draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead, phase=phase)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
