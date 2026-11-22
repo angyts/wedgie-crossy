@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 11: first static road hazard batch.
+"""Crossy hardware checkpoint 12: moving road traffic and safe development scoring.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -8,6 +8,10 @@ from lcd import LCD, Keys, color
 
 DEBUG = True
 FRAME_MS = 100
+# Development mode never reads or writes the persistent high score.
+# Switch to False for release builds after hardware validation.
+DEV_MODE = True
+TRAFFIC_TICKS = 6
 BG = color(22, 90, 45)
 INK = color(245, 245, 230)
 CHICKEN = color(255, 215, 70)
@@ -125,8 +129,23 @@ def car_mask(seed, row):
         return 0
     return ((1 << 2) | (1 << 8)) if (row // 12) % 2 == 0 else ((1 << 1) | (1 << 9))
 
-def road_hit(seed, row, col):
-    return bool(car_mask(seed, row) & (1 << col))
+def traffic_direction(row):
+    return 1 if (row // 12) % 2 == 0 else -1
+
+def moving_car_mask(seed, row, phase):
+    """Two cars shift one cell per traffic step; wrap at the board edge."""
+    base = car_mask(seed, row)
+    if not base:
+        return 0
+    shift = (phase * traffic_direction(row)) % GRID_SIZE
+    return ((base << shift) | (base >> (GRID_SIZE - shift))) & MASK_ALL if shift else base
+
+def road_hit(seed, row, col, phase=0):
+    return bool(moving_car_mask(seed, row, phase) & (1 << col))
+
+def traffic_sweep_hit(seed, row, col, old_phase, new_phase):
+    """Fail closed if traffic occupies the player's cell at either endpoint."""
+    return road_hit(seed, row, col, old_phase) or road_hit(seed, row, col, new_phase)
 
 def row_mask(seed, row):
     """Stable per-row generation; column 5 always remains clear."""
@@ -191,7 +210,7 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
@@ -200,7 +219,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             lcd.fill_rect(0, sy, 240, STEP, ROAD)
             for mark_x in range(0, 240, 40):
                 lcd.fill_rect(mark_x + 8, sy + 9, 16, 2, ROAD_MARK)
-            cars = car_mask(world.seed, absolute)
+            cars = moving_car_mask(world.seed, absolute, phase)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
                     lcd.fill_rect(cx * STEP + 2, sy + 3, 16, 14, CAR)
@@ -248,30 +267,48 @@ def run():
         debug("04 creating bounded grass world")
         # Fixed seed during hardware bring-up: every reset is reproducible.
         seed = 0x13579bdf
-        try:
-            best = save.load("best", 0)
-            if not isinstance(best, int) or best < 0:
-                best = 0
-        except (OSError, ValueError, TypeError) as exc:
-            debug("best load failed: %r" % (exc,))
+        if DEV_MODE:
             best = 0
+            debug("DEV MODE: best score zero; flash writes disabled")
+        else:
+            try:
+                best = save.load("best", 0)
+                if not isinstance(best, int) or best < 0:
+                    best = 0
+            except (OSError, ValueError, TypeError) as exc:
+                debug("best load failed: %r" % (exc,))
+                best = 0
         saved_best = best
         world = World(seed)
         col, row, score = START_COL, START_ROW, 0
         paused = False
         facing = "down"
         dead = False
-        draw_world(lcd, world, col, row, score, best, paused, facing)
+        traffic_tick = 0
+        phase = 0
+        draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
         debug("05 world shown, seed=%d" % seed)
         while True:
+            # Traffic advances only during active gameplay, not while paused/dead.
+            if not paused and not dead:
+                traffic_tick += 1
+                next_phase = traffic_tick // TRAFFIC_TICKS
+                if next_phase != phase:
+                    if is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
+                        dead = True
+                        debug("traffic collision row=%d col=%d" % (row, col))
+                    phase = next_phase
+                    draw_world(lcd, world, col, row, score, best, paused, facing,
+                               dead=dead, phase=phase)
             for key in keys.pressed():
                 if dead:
                     if key == "A":
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
+                        traffic_tick, phase = 0, 0
                         facing = "down"
                         dead = False
-                        draw_world(lcd, world, col, row, score, best, False, facing)
+                        draw_world(lcd, world, col, row, score, best, False, facing, phase=phase)
                     break
                 if key == "Y" and not paused:
                     paused = True
@@ -284,7 +321,7 @@ def run():
                         debug("resumed")
                         draw_world(lcd, world, col, row, score, best, paused, facing)
                     elif key == "A":
-                        if score > saved_best:
+                        if not DEV_MODE and score > saved_best:
                             try:
                                 save.store("best", best)
                                 saved_best = best
@@ -292,6 +329,7 @@ def run():
                                 debug("best save failed: %r" % (exc,))
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
+                        traffic_tick, phase = 0, 0
                         facing = "right"
                         paused = False
                         debug("new run")
@@ -302,30 +340,24 @@ def run():
                     if (nc, nr) != (col, row):
                         col, row = nc, nr
                         facing = key
-                        dead = road_hit(seed, row, col)
+                        dead = road_hit(seed, row, col, phase)
                         if row > score:
                             score = row
                             if score > best:
                                 best = score
-                            if milestone(score) and best > saved_best:
-                                try:
-                                    save.store("best", best)
-                                    saved_best = best
-                                except OSError as exc:
-                                    debug("best save failed: %r" % (exc,))
                         if row - world.first > CAMERA_LEAD:
                             world.advance(row - CAMERA_LEAD)
                         debug("move %s row=%d col=%d score=%d window=%d..%d" %
                               (key, row, col, score, world.first, world.last))
                         if dead:
                             debug("crash row=%d col=%d" % (row, col))
-                            if best > saved_best:
+                            if not DEV_MODE and best > saved_best:
                                 try:
                                     save.store("best", best)
                                     saved_best = best
                                 except OSError as exc:
                                     debug("best save failed: %r" % (exc,))
-                        draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead)
+                        draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead, phase=phase)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
