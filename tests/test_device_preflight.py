@@ -37,7 +37,7 @@ class DevicePreflight(unittest.TestCase):
                     kind,lane,width=m.worldgen.section(seed,row)
                     if kind!="logs":continue
                     world.advance(max(world.first,row-5))
-                    direction=-1 if lane&1 else 1
+                    direction=m.worldgen.log_direction(seed,row)
                     col=5
                     frames=[]
                     original=m.draw_world
