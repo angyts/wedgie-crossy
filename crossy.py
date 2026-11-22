@@ -528,10 +528,11 @@ def draw_dead_chicken(lcd, kind, frame):
         lcd.fill_rect(car_x, y - 10, 62, 18, CAR)
         lcd.fill_rect(car_x + 12, y - 18, 32, 10, CAR)
         lcd.fill_rect(car_x + 17, y - 16, 21, 7, CAR_WINDOW)
-        wheel_x = car_x + 23
-        lcd.fill_rect(wheel_x, y + 2, 32, 30, CAR_WHEEL)
-        lcd.fill_rect(wheel_x + 5, y + 7, 22, 20, ROAD_EDGE)
-        lcd.fill_rect(wheel_x + 12, y + 14, 8, 7, CAR_WHEEL)
+        # Both axles are visible; the rear wheel follows the front.
+        for wheel_x in (car_x + 2, car_x + 33):
+            lcd.fill_rect(wheel_x, y + 2, 27, 29, CAR_WHEEL)
+            lcd.fill_rect(wheel_x + 4, y + 6, 19, 21, ROAD_EDGE)
+            lcd.fill_rect(wheel_x + 10, y + 12, 7, 8, CAR_WHEEL)
     else:
         # Waterline rises, the chicken sinks, and bubbles escape upward.
         water_top = y + 31 - min(frame, 5) * 5
