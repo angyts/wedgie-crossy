@@ -1,0 +1,1 @@
+Fixed road death sprite escaping its reserved y=44..111 animation area: moved its drawing origin from y=58 to y=64. Car roof now starts at y=46, and wheel remains above the popup. Regression checks both road and water sprites across frames 0..11. This is a geometry fix, not a change to collision physics, mixed terrain, log reachability or smooth interpolation.

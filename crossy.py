@@ -509,8 +509,8 @@ def draw_debug_overlay(lcd, seed, phase):
              (seed & 0xffffffff, _debug_fps, free_kb, phase % 100), 1, 22, INK)
 
 def draw_dead_chicken(lcd, kind, frame):
-    """Independent 64x48 death animation above the message panel."""
-    x, y = 120, 58
+    """Death animation contained in the y=44..111 scene above the popup."""
+    x, y = 120, 64
     if kind == "road":
         # Exaggerated squash: the body spreads and becomes almost flat.
         height = max(3, 28 - frame * 6)
