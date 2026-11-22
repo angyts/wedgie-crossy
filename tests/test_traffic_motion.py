@@ -1,6 +1,6 @@
 import unittest
 
-from traffic_motion import pixel_offset, wrapped_position, dirty_span
+from crossy_traffic_motion import pixel_offset, wrapped_position, dirty_span
 
 
 class TrafficMotionTests(unittest.TestCase):
