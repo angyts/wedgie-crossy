@@ -1,0 +1,29 @@
+{
+  "apps": [
+    {
+      "mod": "crossy",
+      "name": "Crossy",
+      "about": "Cross the endless grassland. Avoid trees and keep moving!",
+      "files": [
+        "crossy.py"
+      ],
+      "entry": "run",
+      "fw": "0.3.5",
+      "label": "#36834a",
+      "icon": [
+        "............",
+        "....yyyy....",
+        "...yyyyyy...",
+        "...ywwwwy...",
+        "..yywwwwyy..",
+        "..yyyyyyyy..",
+        "...yrrrry...",
+        "....rrrr....",
+        "....r..r....",
+        "...rr..rr...",
+        "............",
+        "............"
+      ]
+    }
+  ]
+}
