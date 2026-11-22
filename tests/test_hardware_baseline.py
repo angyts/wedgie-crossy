@@ -49,6 +49,11 @@ class BootSmokeTests(unittest.TestCase):
             for _ in range(30):
                 x, y = module.moved(x, y, "down")
             self.assertEqual(y, module.MAX_Y)
+            for _ in range(30):
+                x, y = module.moved(x, y, "up")
+            self.assertEqual(y, module.MIN_Y)
+            self.assertEqual((x - module.MIN_X) % 20, 0)
+            self.assertEqual((y - module.MIN_Y) % 20, 0)
             self.assertEqual(module.moved(x, y, "A"), (x, y))
         finally:
             if old_lcd is None:
@@ -88,10 +93,11 @@ class BootSmokeTests(unittest.TestCase):
                 sys.modules.pop("time", None)
             else:
                 sys.modules["time"] = old_time
-        self.assertIn(("text", "READY"), screen.calls)
-        self.assertIn(("text", "JOYSTICK TEST"), screen.calls)
+        self.assertIn(("text", "WEDGIE CROSSY"), screen.calls)
+        self.assertIn(("text", "GRID TEST"), screen.calls)
         rects = [c for c in screen.calls if c[0] == "fill_rect"]
-        self.assertEqual(len(rects), 6)
+        self.assertEqual(len(rects), 78)
+        self.assertEqual(len([c for c in rects if c[3] == 20 and c[4] == 20]), 72)
         self.assertTrue(all(0 <= c[1] and 0 <= c[2] and c[1] + c[3] <= 240 and c[2] + c[4] <= 240 for c in rects))
         self.assertEqual(sum(c[0] == "show" for c in screen.calls), 1)
         self.assertEqual(len(polls), 1)
