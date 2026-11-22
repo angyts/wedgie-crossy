@@ -802,7 +802,9 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             # Full redraws (including joystick movement) must use the same
             # pixel phase as cosmetic frames, or cars visibly snap backwards.
             moving = (road_step > 0 and road_step < STEP
-                      and screen_row != WINDOW - 1 and absolute != row)
+                      and screen_row != WINDOW - 1 and absolute != row
+                      and generated_mask(world.seed, absolute, phase) !=
+                          generated_mask(world.seed, absolute, phase + 1))
             direction = worldgen.road_direction(world.seed, absolute) if moving else 0
             clip = ClippedLCD(lcd, 0, sy, STEP)
             for cx in range(GRID_SIZE):
