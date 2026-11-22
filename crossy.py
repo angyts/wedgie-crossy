@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 10: four-direction chicken and minimal HUD.
+"""Crossy hardware checkpoint 11: first static road hazard batch.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -18,6 +18,9 @@ GRID_SIZE = 12
 GRASS_ALT = color(27, 105, 53)
 TREE_TRUNK = color(105, 64, 28)
 TREE_LEAVES = color(13, 65, 28)
+ROAD = color(65, 68, 72)
+ROAD_MARK = color(180, 175, 115)
+CAR = color(210, 55, 45)
 # Fixed positions (column, row) for repeatable hardware verification.
 TREES = ((6, 9), (4, 8), (2, 6), (9, 7), (8, 4), (3, 3))
 START_X = 110
@@ -112,9 +115,22 @@ START_ROW = 0
 CAMERA_LEAD = 8
 MASK_ALL = (1 << GRID_SIZE) - 1
 
+def is_road(row):
+    """Sparse, static test roads; no moving traffic in this checkpoint."""
+    return row >= 6 and row % 12 == 6
+
+def car_mask(seed, row):
+    """Reproducible parked cars, leaving the center corridor clear."""
+    if not is_road(row):
+        return 0
+    return ((1 << 2) | (1 << 8)) if (row // 12) % 2 == 0 else ((1 << 1) | (1 << 9))
+
+def road_hit(seed, row, col):
+    return bool(car_mask(seed, row) & (1 << col))
+
 def row_mask(seed, row):
     """Stable per-row generation; column 5 always remains clear."""
-    if row < 2:
+    if row < 2 or is_road(row):
         return 0
     value = (seed ^ ((row + 1) * 0x9e3779b9)) & 0xffffffff
     value ^= value >> 16
@@ -175,11 +191,20 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
         sy = (WINDOW - 1 - screen_row) * STEP
+        if is_road(absolute):
+            lcd.fill_rect(0, sy, 240, STEP, ROAD)
+            for mark_x in range(0, 240, 40):
+                lcd.fill_rect(mark_x + 8, sy + 9, 16, 2, ROAD_MARK)
+            cars = car_mask(world.seed, absolute)
+            for cx in range(GRID_SIZE):
+                if cars & (1 << cx):
+                    lcd.fill_rect(cx * STEP + 2, sy + 3, 16, 14, CAR)
+            continue
         mask = world.mask(absolute)
         for x in range(GRID_SIZE):
             if mask & (1 << x):
@@ -196,7 +221,12 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     if milestone(score):
         lcd.text("SCORE %d" % score, 5, 5, score_color)
     lcd.text("BEST %d" % best, 145, 5, INK)
-    if paused:
+    if dead:
+        lcd.fill_rect(35, 85, 170, 72, BG)
+        lcd.text("CRASH!", 95, 95, INK)
+        lcd.fill_rect(54, 119, 12, 12, color(45, 205, 80))
+        lcd.text("NEW RUN", 76, 121, INK)
+    elif paused:
         lcd.fill_rect(38, 85, 164, 72, BG)
         lcd.text("PAUSED", 96, 95, INK)
         # Colored button icons communicate physical controls without A/B jargon.
@@ -230,10 +260,19 @@ def run():
         col, row, score = START_COL, START_ROW, 0
         paused = False
         facing = "down"
+        dead = False
         draw_world(lcd, world, col, row, score, best, paused, facing)
         debug("05 world shown, seed=%d" % seed)
         while True:
             for key in keys.pressed():
+                if dead:
+                    if key == "A":
+                        world = World(seed)
+                        col, row, score = START_COL, START_ROW, 0
+                        facing = "down"
+                        dead = False
+                        draw_world(lcd, world, col, row, score, best, False, facing)
+                    break
                 if key == "Y" and not paused:
                     paused = True
                     debug("paused")
@@ -263,6 +302,7 @@ def run():
                     if (nc, nr) != (col, row):
                         col, row = nc, nr
                         facing = key
+                        dead = road_hit(seed, row, col)
                         if row > score:
                             score = row
                             if score > best:
@@ -277,7 +317,15 @@ def run():
                             world.advance(row - CAMERA_LEAD)
                         debug("move %s row=%d col=%d score=%d window=%d..%d" %
                               (key, row, col, score, world.first, world.last))
-                        draw_world(lcd, world, col, row, score, best, paused, facing)
+                        if dead:
+                            debug("crash row=%d col=%d" % (row, col))
+                            if best > saved_best:
+                                try:
+                                    save.store("best", best)
+                                    saved_best = best
+                                except OSError as exc:
+                                    debug("best save failed: %r" % (exc,))
+                        draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break

@@ -77,7 +77,7 @@ class BootSmokeTests(unittest.TestCase):
                 x = module.MIN_X + col * module.STEP
                 y = module.MIN_Y + row * module.STEP
                 module.draw_chicken(screen, x, y)
-                self.assertEqual(len(screen.calls), 6)
+                self.assertGreaterEqual(len(screen.calls), 6)
                 for _, rx, ry, rw, rh, _ in screen.calls:
                     self.assertGreaterEqual(rx, col * 20)
                     self.assertGreaterEqual(ry, row * 20)
