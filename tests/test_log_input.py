@@ -27,14 +27,8 @@ class LogInputTests(unittest.TestCase):
                 def pressed(self):
                     self.calls+=1
                     return ("up",) if self.calls==2 else ()
-            class StopSleep(BaseException):pass
-            old_sleep=m.time.sleep_ms
-            m.time.sleep_ms=lambda ms:None
-            try:
-                key=m.animate_log_carry(Screen(),m.World(123),1,12,12,12,"up",0,1,Keys())
-                self.assertEqual(key,"up")
-            finally:
-                m.time.sleep_ms=old_sleep
+            key=m.animate_log_carry(Screen(),m.World(123),1,12,12,12,"up",0,1,Keys())
+            self.assertEqual(key,"up")
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old

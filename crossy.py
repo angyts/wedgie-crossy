@@ -390,16 +390,16 @@ def animate_log_carry(lcd, world, old_col, row, score, best, facing,
                       old_phase, new_phase, keys):
     """Four visual substeps; logical collision remains grid-based."""
     direction = -1 if (row // 24) & 1 else 1
-    queued = None
+    # Poll before rendering, not after: a hop off the log takes priority.
+    # Do not add explicit sleeps: LCD.show() already consumes frame time.
     for step in range(1, 5):
+        for pressed in keys.pressed():
+            if pressed in ("up", "down", "left", "right"):
+                return pressed
         draw_world(lcd, world, old_col, row, score, best, False, facing,
                    phase=old_phase if step < 3 else new_phase,
                    chicken_dx=direction * step * 5)
-        for pressed in keys.pressed():
-            if queued is None and pressed in ("up", "down", "left", "right"):
-                queued = pressed
-        time.sleep_ms(25)
-    return queued
+    return None
 
 def animate_crash(lcd, world, col, row, score, best, facing, phase):
     """Brief non-blocking-to-firmware animation with a bounded duration."""
