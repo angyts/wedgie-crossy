@@ -507,7 +507,11 @@ def animate_water(lcd, world, col, row, score, best, facing, phase, carried_off=
 def animate_log_carry(lcd, world, old_col, row, score, best, facing,
                       old_phase, new_phase, keys):
     """Four visual substeps; logical collision remains grid-based."""
-    direction = -1 if (row // 24) & 1 else 1
+    if PROCEDURAL_WORLD:
+        lane = worldgen.section(world.seed, row)[1]
+        direction = -1 if lane & 1 else 1
+    else:
+        direction = -1 if (row // 24) & 1 else 1
     # Poll before rendering, not after: a hop off the log takes priority.
     # Do not add explicit sleeps: LCD.show() already consumes frame time.
     for step in range(1, 5):
@@ -536,7 +540,7 @@ def run():
         debug("03 creating Keys")
         keys = Keys()
         debug("04 creating bounded grass world")
-        # Fixed seed during hardware bring-up: every reset is reproducible.
+        # Fixed seed when procedural mode is disabled; timing-derived otherwise.
         seed = new_run_seed(time.ticks_ms())
         if DEV_MODE:
             best = 0
