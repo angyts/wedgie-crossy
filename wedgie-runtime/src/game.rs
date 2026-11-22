@@ -26,6 +26,11 @@ impl Game {
         })
     }
 
+    /// Return a driver-independent view of the current game state.
+    pub fn frame(&self) -> crate::render::Frame {
+        crate::render::snapshot(&self.world, self.player, self.score, self.dead)
+    }
+
     /// One input per tick; missing or evicted rows are not traversable.
     pub fn step(&mut self, movement: Move) -> StepResult {
         if self.dead { return StepResult::Dead; }
@@ -119,6 +124,23 @@ mod tests {
         let mut g = Game::new(world(), 0).unwrap();
         for _ in 0..3 { assert_eq!(g.step(Move::Forward), StepResult::Alive); }
         assert_eq!(g.step(Move::Forward), StepResult::Dead);
+    }
+
+    #[test]
+    fn frame_tracks_movement_score_and_game_over() {
+        use crate::render::Tile;
+        let mut g = Game::new(world(), 0).unwrap();
+        assert_eq!(g.frame().tile(0, 0), Some(Tile::Chicken));
+        assert_eq!(g.step(Move::Forward), StepResult::Alive);
+        let frame = g.frame();
+        assert_eq!(frame.tile(1, 0), Some(Tile::Chicken));
+        assert_eq!(frame.tile(0, 0), Some(Tile::Grass));
+        assert_eq!(frame.score, 1);
+        assert_eq!(g.step(Move::Back), StepResult::Alive);
+        assert_eq!(g.frame().score, 1);
+        assert_eq!(g.step(Move::Back), StepResult::Dead);
+        assert!(g.frame().game_over);
+        assert_eq!(g.frame().tile(0, 0), Some(Tile::Grass));
     }
 
     #[test]
