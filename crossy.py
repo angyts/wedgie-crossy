@@ -8,6 +8,9 @@ import crossy_worldgen as worldgen
 from lcd import LCD, Keys, color
 
 DEBUG = True
+PROFILE_RENDER = False
+_render_frames = 0
+_render_total_ms = 0
 # Integration gate: preserve known-good hardware behavior until validation.
 PROCEDURAL_WORLD = True
 # Set to an integer to reproduce a world; None uses timing-derived seeds.
@@ -479,24 +482,27 @@ def draw_log_runs(lcd, mask, sy):
         col += 1
 
 def draw_dead_chicken(lcd, kind, frame):
-    """Small animated portrait above the game-over message."""
-    x, y = 106, 78
+    """Independent 64x48 death animation above the message panel."""
+    x, y = 120, 58
     if kind == "road":
-        # Flattened chicken; compressed further over crash frames.
-        height = max(5, 12 - frame)
-        lcd.fill_rect(x - 13, y + 12 - height, 27, height, CHICKEN)
-        lcd.fill_rect(x + 13, y + 12 - height, 6, 3, BEAK)
-        lcd.fill_rect(x - 5, y + 9 - height, 2, 2, EYE)
-        lcd.fill_rect(x + 3, y + 9 - height, 2, 2, EYE)
+        # Squash a full-sized chicken over five frames.
+        height = max(6, 28 - frame * 5)
+        top = y + 30 - height
+        lcd.fill_rect(x - 26, top, 52, height, CHICKEN)
+        lcd.fill_rect(x + 26, top + height // 2, 9, 5, BEAK)
+        lcd.fill_rect(x - 13, top + 3, 4, 3, EYE)
+        lcd.fill_rect(x + 10, top + 3, 4, 3, EYE)
+        lcd.fill_rect(x - 30, y + 31, 60, 3, ROAD_EDGE)
     else:
-        # Partially submerged chicken with animated waterline.
-        bob = frame % 3
-        lcd.fill_rect(x - 9, y + bob, 18, 13, CHICKEN)
-        lcd.fill_rect(x + 9, y + 5 + bob, 5, 3, BEAK)
-        lcd.fill_rect(x + 3, y + 4 + bob, 2, 2, EYE)
-        lcd.fill_rect(x - 16, y + 10 + bob, 34, 3, WATER_RIPPLE)
-        lcd.fill_rect(x - 20, y + 7 + bob, 3, 2, SPLASH)
-        lcd.fill_rect(x + 18, y + 5 + bob, 3, 2, SPLASH)
+        # Chicken descends into water as ripples spread.
+        depth = min(20, frame * 4)
+        visible = max(4, 27 - depth)
+        lcd.fill_rect(x - 16, y + depth, 32, visible, CHICKEN)
+        lcd.fill_rect(x + 16, y + depth + 5, 8, 4, BEAK)
+        lcd.fill_rect(x + 7, y + depth + 4, 3, 3, EYE)
+        lcd.fill_rect(x - 30, y + 25, 60, 5, WATER)
+        radius = 18 + frame * 4
+        lcd.fill_rect(x - radius, y + 29, radius * 2, 2, WATER_RIPPLE)
 
 def dynamic_rows(world, player_row):
     """Small fixed-size dirty row list; no persistent framebuffer copy."""
@@ -510,6 +516,8 @@ def dynamic_rows(world, player_row):
     return rows
 
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None):
+    global _render_frames, _render_total_ms
+    render_started = time.ticks_ms() if PROFILE_RENDER else 0
     if dirty_rows is None:
         lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
@@ -581,21 +589,24 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.text("SCORE %d" % score, 5, 5, score_color)
     lcd.text("BEST %d" % best, 145, 5, INK)
     if dead:
-        lcd.fill_rect(8, 73, 224, 112, BG)
-        draw_dead_chicken(lcd, "water" if death_kind in ("water", "offscreen") else "road", crash_frame or water_frame or phase)
+        # The portrait is a separate scene ABOVE the popup, never inside it.
+        lcd.fill_rect(72, 44, 96, 65, BG)
+        draw_dead_chicken(lcd, "water" if death_kind in ("water", "offscreen") else "road",
+                          crash_frame or water_frame or 5)
+        lcd.fill_rect(8, 112, 224, 103, BG)
         if death_kind == "water":
-            lcd.text("ALWAYS WATCH", 56, 101, INK)
-            lcd.text("WHERE YOU STEP", 48, 116, INK)
+            lcd.text("ALWAYS WATCH", 56, 120, INK)
+            lcd.text("WHERE YOU STEP", 48, 135, INK)
         elif death_kind == "offscreen":
-            lcd.text("MUST ALWAYS", 65, 101, INK)
-            lcd.text("BE DECISIVE", 70, 116, INK)
+            lcd.text("MUST ALWAYS", 65, 120, INK)
+            lcd.text("BE DECISIVE", 70, 135, INK)
         else:
-            lcd.text("ALWAYS LOOK", 64, 101, INK)
-            lcd.text("BEFORE YOU", 68, 114, INK)
-            lcd.text("CROSS THE ROAD", 49, 127, INK)
-        lcd.text("YOUR SCORE: %d" % score, 57, 147, CHICKEN)
-        lcd.fill_rect(48, 161, 12, 12, color(45, 205, 80))
-        lcd.text("NEW RUN", 70, 163, INK)
+            lcd.text("ALWAYS LOOK", 64, 120, INK)
+            lcd.text("BEFORE YOU", 68, 134, INK)
+            lcd.text("CROSS THE ROAD", 49, 148, INK)
+        lcd.text("YOUR SCORE: %d" % score, 57, 173, CHICKEN)
+        lcd.fill_rect(48, 193, 12, 12, color(45, 205, 80))
+        lcd.text("NEW RUN", 70, 195, INK)
     elif paused:
         lcd.fill_rect(38, 85, 164, 72, BG)
         lcd.text("PAUSED", 96, 95, INK)
