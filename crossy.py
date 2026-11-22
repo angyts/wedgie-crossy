@@ -165,6 +165,26 @@ def generated_trees(seed, row):
 def new_run_seed(ticks):
     return worldgen.seed_from_ticks(ticks) if PROCEDURAL_WORLD else 0x13579bdf
 
+def hazard_at(seed, row, col, phase):
+    """Collision uses the exact same mask as the renderer."""
+    kind = terrain_kind(seed, row)
+    if kind == "road":
+        return bool(generated_mask(seed, row, phase) & (1 << col))
+    if kind in ("logs", "lilies"):
+        return not bool(generated_mask(seed, row, phase) & (1 << col))
+    return bool(generated_trees(seed, row) & (1 << col))
+
+def generated_traffic_hit(seed, row, col, before, after):
+    return (hazard_at(seed, row, col, before) or
+            hazard_at(seed, row, col, after))
+
+def generated_carry(seed, row, col):
+    kind, lane, width = worldgen.section(seed, row)
+    if kind != "logs":
+        return col
+    new_col = col + (-1 if lane & 1 else 1)
+    return new_col if 0 <= new_col < GRID_SIZE else None
+
 def is_river(row):
     """Sparse river rows, separated from roads."""
     return row >= 12 and row % 24 == 12
@@ -508,11 +528,11 @@ def run():
             # LCD frame cannot make cars skip several cells to catch up.
             if not paused and not dead and traffic_due(time.ticks_ms(), next_traffic_at):
                 next_phase = next_traffic_phase(phase)
-                if is_river(row):
-                    if on_lily(row, col):
+                if terrain_kind(seed, row) in ("logs", "lilies"):
+                    if terrain_kind(seed, row) == "lilies" and not hazard_at(seed, row, col, phase):
                         pass  # Stationary pad: do not carry the chicken.
-                    elif supported_by_log(row, col, phase):
-                        carried = carry_on_log(row, col, phase)
+                    elif not hazard_at(seed, row, col, phase):
+                        carried = generated_carry(seed, row, col) if PROCEDURAL_WORLD else carry_on_log(row, col, phase)
                         if carried is None:
                             dead = True
                             death_kind = "offscreen"
@@ -526,10 +546,10 @@ def run():
                     else:
                         dead = True
                         death_kind = "water"
-                    if not dead and not water_supported(row, col, next_phase):
+                    if not dead and hazard_at(seed, row, col, next_phase):
                         dead = True
                         death_kind = "water"
-                if not dead and is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
+                if not dead and terrain_kind(seed, row) == "road" and generated_traffic_hit(seed, row, col, phase, next_phase):
                     dead = True
                     crash_animated = False
                     debug("traffic collision row=%d col=%d phase=%d" %
@@ -555,6 +575,7 @@ def run():
             for key in inputs:
                 if dead:
                     if key == "A":
+                        seed = new_run_seed(time.ticks_ms())
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
                         phase = 0
@@ -599,11 +620,11 @@ def run():
                         col, row = nc, nr
                         facing = key
                         death_kind = None
-                        if is_river(row) and not water_supported(row, col, phase):
+                        if terrain_kind(seed, row) in ("logs", "lilies") and hazard_at(seed, row, col, phase):
                             dead = True
                             death_kind = "water"
                         else:
-                            dead = road_hit(seed, row, col, phase)
+                            dead = terrain_kind(seed, row) == "road" and hazard_at(seed, row, col, phase)
                         if dead:
                             crash_animated = False
                         if row > score:
