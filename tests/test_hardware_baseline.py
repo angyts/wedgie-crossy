@@ -7,7 +7,7 @@ import unittest
 
 APP = Path(__file__).resolve().parents[1] / "crossy.py"
 
-class StopAfterFirstSleep(Exception):
+class StopAfterFirstSleep(BaseException):
     pass
 
 class LCDStub:
