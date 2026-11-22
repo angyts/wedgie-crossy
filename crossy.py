@@ -673,7 +673,20 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.text("NEW RUN", 76, 138, INK)
     if DEBUG:
         draw_debug_overlay(lcd, world.seed, phase)
-    lcd.show()
+    if dirty_rows is None or not hasattr(lcd, "show_rect"):
+        lcd.show()
+    else:
+        # Snake's proven partial LCD transfer API. Only rows repainted
+        # in the framebuffer are sent to the panel.
+        for absolute in dirty_rows:
+            if world.first <= absolute <= world.last:
+                sy = (WINDOW - 1 - (absolute - world.first)) * STEP
+                lcd.show_rect(0, sy, 240, STEP)
+        # The HUD overlays the uppermost terrain row.
+        if (world.first + WINDOW - 1) in dirty_rows:
+            lcd.show_rect(0, 0, 240, 20)
+        if DEBUG:
+            lcd.show_rect(0, 20, 240, 14)
     if PROFILE_RENDER:
         elapsed = time.ticks_diff(time.ticks_ms(), render_started)
         _render_frames += 1
