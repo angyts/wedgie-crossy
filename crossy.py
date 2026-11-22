@@ -4,9 +4,12 @@ Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
 """
 import time
+import worldgen
 from lcd import LCD, Keys, color
 
 DEBUG = True
+# Integration gate: preserve known-good hardware behavior until validation.
+PROCEDURAL_WORLD = False
 FRAME_MS = 100
 # Development mode never reads or writes the persistent high score.
 # Switch to False for release builds after hardware validation.
@@ -137,6 +140,31 @@ START_ROW = 0
 CAMERA_LEAD = 5  # Player settles near the screen center.
 MASK_ALL = (1 << GRID_SIZE) - 1
 
+def terrain_kind(seed, row):
+    if PROCEDURAL_WORLD:
+        return worldgen.section(seed, row)[0]
+    if is_river(row):
+        return river_type(row)
+    if is_road(row):
+        return "road"
+    return "grass"
+
+def generated_mask(seed, row, phase):
+    kind = terrain_kind(seed, row)
+    if kind == "road":
+        return worldgen.road_mask(seed, row, phase) if PROCEDURAL_WORLD else moving_car_mask(seed, row, phase)
+    if kind == "logs":
+        return worldgen.log_mask(seed, row, phase) if PROCEDURAL_WORLD else log_mask(row, phase)
+    if kind == "lilies":
+        return worldgen.lily_mask(seed, row) if PROCEDURAL_WORLD else lily_mask(row)
+    return 0
+
+def generated_trees(seed, row):
+    return worldgen.tree_mask(seed, row) if PROCEDURAL_WORLD else row_mask(seed, row)
+
+def new_run_seed(ticks):
+    return worldgen.seed_from_ticks(ticks) if PROCEDURAL_WORLD else 0x13579bdf
+
 def is_river(row):
     """Sparse river rows, separated from roads."""
     return row >= 12 and row % 24 == 12
@@ -234,7 +262,7 @@ class World:
         self.first = 0
         self.last = WINDOW - 1
         for row in range(WINDOW):
-            self.rows[row] = row_mask(seed, row)
+            self.rows[row] = generated_trees(seed, row)
 
     def mask(self, row):
         if row < self.first or row > self.last:
@@ -247,7 +275,7 @@ class World:
         while self.first < new_first:
             self.first += 1
             self.last += 1
-            self.rows[self.last % WINDOW] = row_mask(self.seed, self.last)
+            self.rows[self.last % WINDOW] = generated_trees(self.seed, self.last)
 
 def move_world(world, col, row, direction):
     dc, dr = 0, 0
@@ -332,22 +360,23 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
         sy = (WINDOW - 1 - screen_row) * STEP
-        if is_river(absolute):
+        kind = terrain_kind(world.seed, absolute)
+        if kind in ("logs", "lilies"):
             lcd.fill_rect(0, sy, 240, STEP, WATER)
             for rx in range((absolute % 3) * 12, 240, 60):
                 lcd.fill_rect(rx, sy + 3, 10, 1, WATER_RIPPLE)
-            pads = lily_mask(absolute)
+            pads = generated_mask(world.seed, absolute, phase) if kind == "lilies" else 0
             for px in range(GRID_SIZE):
                 if pads & (1 << px):
                     lcd.fill_rect(px * STEP + 3, sy + 3, 14, 14, LILY)
                     lcd.fill_rect(px * STEP + 8, sy + 4, 2, 9, LILY_VEIN)
-            logs = log_mask(absolute, phase)
+            logs = generated_mask(world.seed, absolute, phase) if kind == "logs" else 0
             for lx in range(GRID_SIZE):
                 if logs & (1 << lx):
                     lcd.fill_rect(lx * STEP + 1, sy + 5, 18, 11, LOG)
                     lcd.fill_rect(lx * STEP + 4, sy + 8, 11, 2, LOG_GRAIN)
             continue
-        if is_road(absolute):
+        if kind == "road":
             lcd.fill_rect(0, sy, 240, STEP, ROAD)
             lcd.fill_rect(0, sy + 2, 240, 1, SHOULDER)
             lcd.fill_rect(0, sy + 17, 240, 1, SHOULDER)
@@ -355,7 +384,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             lcd.fill_rect(0, sy + 18, 240, 2, ROAD_EDGE)
             for mark_x in range(0, 240, 40):
                 lcd.fill_rect(mark_x + 8, sy + 9, 16, 2, ROAD_MARK)
-            cars = moving_car_mask(world.seed, absolute, phase)
+            cars = generated_mask(world.seed, absolute, phase)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
                     draw_car(lcd, cx * STEP, sy, absolute, phase)
@@ -449,7 +478,7 @@ def run():
         keys = Keys()
         debug("04 creating bounded grass world")
         # Fixed seed during hardware bring-up: every reset is reproducible.
-        seed = 0x13579bdf
+        seed = new_run_seed(time.ticks_ms())
         if DEV_MODE:
             best = 0
             debug("DEV MODE: best score zero; flash writes disabled")
