@@ -4,11 +4,26 @@ on:
     branches: [main]
   pull_request:
 jobs:
-  tests:
+  python-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest discover -s tests -v
+      - name: Python regression suite
+        run: python -m unittest discover -s tests -v
+
+  rust-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Rust runtime unit tests
+        run: cargo test --manifest-path wedgie-runtime/Cargo.toml --locked
+      - name: Rust no_std library check
+        run: cargo check --manifest-path wedgie-runtime/Cargo.toml --lib --locked
+      - name: Rust formatting
+        run: cargo fmt --manifest-path wedgie-runtime/Cargo.toml --all -- --check
