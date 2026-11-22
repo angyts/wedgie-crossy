@@ -151,7 +151,7 @@ class BootSmokeTests(unittest.TestCase):
         fake_save.store = lambda name, value: None
         fake_time = types.ModuleType("time")
         def sleep(ms):
-            self.assertEqual(ms, 100)
+            self.assertEqual(ms, 10)
             raise StopAfterFirstSleep()
         fake_time.sleep_ms = sleep
         fake_time.ticks_ms = lambda: 0
@@ -167,6 +167,7 @@ class BootSmokeTests(unittest.TestCase):
             spec = importlib.util.spec_from_file_location("crossy_baseline_smoke", APP)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+            self.assertEqual(module.FRAME_MS, 100)
             with self.assertRaises(StopAfterFirstSleep):
                 module.run()
         finally:
