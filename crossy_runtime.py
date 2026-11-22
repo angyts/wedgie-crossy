@@ -178,6 +178,9 @@ def run():
                     else:
                         nc, nr = move_world(world, col, row, key)
                     if (nc, nr) != (col, row):
+                        old_row = row
+                        old_first = world.first
+                        old_score = score
                         col, row = nc, nr
                         facing = key
                         death_kind = None
@@ -215,9 +218,19 @@ def run():
                             interval_ms = traffic_interval(score) * FRAME_MS
                             remaining = time.ticks_diff(next_traffic_at, now)
                             road_step = pixel_offset(interval_ms - remaining, interval_ms, STEP)
+                            # Ordinary hops change at most two terrain rows.
+                            # Preserve the framebuffer and transfer only those
+                            # strips; scrolling still needs a full redraw.
+                            dirty = None
+                            if world.first == old_first:
+                                dirty = [old_row]
+                                if row != old_row:
+                                    dirty.append(row)
+                                if score != old_score:
+                                    dirty.append(world.first + WINDOW - 1)
                             draw_world(lcd, world, col, row, score, best, paused, facing,
                                        dead=dead, phase=phase, death_kind=death_kind,
-                                       road_step=road_step)
+                                       road_step=road_step, dirty_rows=dirty)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
