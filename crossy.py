@@ -11,6 +11,7 @@ DEBUG = True
 PROFILE_RENDER = False
 _render_frames = 0
 _render_total_ms = 0
+_render_max_ms = 0
 # Integration gate: preserve known-good hardware behavior until validation.
 PROCEDURAL_WORLD = True
 # Set to an integer to reproduce a world; None uses timing-derived seeds.
@@ -504,6 +505,15 @@ def draw_dead_chicken(lcd, kind, frame):
         radius = 18 + frame * 4
         lcd.fill_rect(x - radius, y + 29, radius * 2, 2, WATER_RIPPLE)
 
+def changed_hazard_rows(world, old_phase, new_phase, player_row):
+    rows = [player_row]
+    for index in range(WINDOW):
+        absolute = world.first + index
+        if absolute != player_row and terrain_kind(world.seed, absolute) in ("road", "logs"):
+            if generated_mask(world.seed, absolute, old_phase) != generated_mask(world.seed, absolute, new_phase):
+                rows.append(absolute)
+    return rows
+
 def dynamic_rows(world, player_row):
     """Small fixed-size dirty row list; no persistent framebuffer copy."""
     rows = [player_row]
@@ -516,7 +526,7 @@ def dynamic_rows(world, player_row):
     return rows
 
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None):
-    global _render_frames, _render_total_ms
+    global _render_frames, _render_total_ms, _render_max_ms
     render_started = time.ticks_ms() if PROFILE_RENDER else 0
     if dirty_rows is None:
         lcd.fill(GRASS_ALT)
@@ -545,8 +555,11 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             lcd.fill_rect(0, sy + 17, 240, 1, SHOULDER)
             lcd.fill_rect(0, sy, 240, 2, ROAD_EDGE)
             lcd.fill_rect(0, sy + 18, 240, 2, ROAD_EDGE)
+            stripe_shift = (worldgen.mix32(world.seed ^ absolute) & 1) * 8
             for mark_x in range(0, 240, 40):
-                lcd.fill_rect(mark_x + 8, sy + 9, 16, 2, ROAD_MARK)
+                mx = mark_x + 8 + stripe_shift
+                if mx + 16 <= 240:
+                    lcd.fill_rect(mx, sy + 9, 16, 2, ROAD_MARK)
             cars = generated_mask(world.seed, absolute, phase)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
@@ -581,13 +594,13 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     elif not dead:
         draw_chicken(lcd, MIN_X + col * STEP + chicken_dx, MIN_Y + screen_y, facing)
     # Minimal HUD. A tenth-row milestone briefly changes score color.
-    if dirty_rows is None or score != best:
+    if dirty_rows is None:
         lcd.fill_rect(0, 0, 240, 20, BG)
-    score_color = CHICKEN if milestone(score) else INK
-    lcd.text("SCORE %d" % score, 4, 5, score_color)
-    if milestone(score):
-        lcd.text("SCORE %d" % score, 5, 5, score_color)
-    lcd.text("BEST %d" % best, 145, 5, INK)
+        score_color = CHICKEN if milestone(score) else INK
+        lcd.text("SCORE %d" % score, 4, 5, score_color)
+        if milestone(score):
+            lcd.text("SCORE %d" % score, 5, 5, score_color)
+        lcd.text("BEST %d" % best, 145, 5, INK)
     if dead:
         # The portrait is a separate scene ABOVE the popup, never inside it.
         lcd.fill_rect(72, 44, 96, 65, BG)
@@ -616,6 +629,18 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.fill_rect(54, 136, 12, 12, color(45, 205, 80))
         lcd.text("NEW RUN", 76, 138, INK)
     lcd.show()
+    if PROFILE_RENDER:
+        elapsed = time.ticks_diff(time.ticks_ms(), render_started)
+        _render_frames += 1
+        _render_total_ms += elapsed
+        if elapsed > _render_max_ms:
+            _render_max_ms = elapsed
+        if _render_frames >= 30:
+            debug("render avg_ms=%d max_ms=%d" % (
+                _render_total_ms // _render_frames, _render_max_ms))
+            _render_frames = 0
+            _render_total_ms = 0
+            _render_max_ms = 0
 
 def animate_water(lcd, world, col, row, score, best, facing, phase, carried_off=False):
     """Short splash sequence, with an edge struggle before falling off."""
@@ -734,7 +759,7 @@ def run():
                 else:
                     draw_world(lcd, world, col, row, score, best, paused, facing,
                                dead=False, phase=phase,
-                               dirty_rows=dynamic_rows(world, row))
+                               dirty_rows=changed_hazard_rows(world, phase - 1, phase, row))
                 next_traffic_at = time.ticks_add(
                     time.ticks_ms(), traffic_interval(score) * FRAME_MS)
             if queued_direction is not None:
@@ -746,7 +771,6 @@ def run():
                 if dead:
                     if key == "A":
                         seed = new_run_seed(time.ticks_ms())
-                        seed = new_run_seed(time.ticks_ms()) if PROCEDURAL_WORLD else seed
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
                         phase = 0
