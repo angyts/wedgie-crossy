@@ -40,8 +40,16 @@ class EndlessGrassTests(unittest.TestCase):
             world.advance(row)
         self.assertEqual(len(world.rows), 12)
         self.assertEqual(world.last - world.first + 1, 12)
-        self.assertEqual(world.mask(world.last), m.row_mask(123, world.last))
+        self.assertEqual(world.mask(world.last), m.generated_trees(123, world.last))
         self.assertIsNone(world.mask(0))
+
+    def test_legacy_world_uses_legacy_rows(self):
+        m = load()
+        m.PROCEDURAL_WORLD = False
+        world = m.World(123)
+        self.assertEqual(world.mask(9), m.row_mask(123, 9))
+        world.advance(100)
+        self.assertEqual(world.mask(world.last), m.row_mask(123, world.last))
 
     def test_blocking_and_reset(self):
         m = load()
@@ -52,7 +60,7 @@ class EndlessGrassTests(unittest.TestCase):
         self.assertEqual(m.move_world(world, 5, 20, "down"), (5, 20))
         reset = m.World(123)
         self.assertEqual(reset.first, 0)
-        self.assertEqual(reset.mask(9), m.row_mask(123, 9))
+        self.assertEqual(reset.mask(9), m.generated_trees(123, 9))
 
 if __name__ == "__main__":
     unittest.main()
