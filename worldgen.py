@@ -33,6 +33,33 @@ def section(seed, row):
     kind = ("road", "logs", "lilies")[value % 3]
     return (kind, offset, width)
 
+def lily_route_col(seed, row):
+    kind, lane, width = section(seed, row)
+    if kind != "lilies":
+        return None
+    block = (row - 16) // BLOCK
+    value = mix32(seed ^ (block * 0x6d2b79f5))
+    col = 2 + value % (WIDTH - 4)
+    for i in range(lane):
+        turn = mix32(value ^ (i * 0x9e3779b9)) % 3 - 1
+        col = max(1, min(WIDTH - 2, col + turn))
+    return col
+
+def lily_bank_route(seed, row):
+    if section(seed, row)[0] != "grass":
+        return 0
+    target = None
+    if section(seed, row + 1)[0] == "lilies":
+        target = lily_route_col(seed, row + 1)
+    elif row > 0 and section(seed, row - 1)[0] == "lilies":
+        target = lily_route_col(seed, row - 1)
+    if target is None:
+        return 0
+    mask = 0
+    for col in range(min(CENTER, target), max(CENTER, target) + 1):
+        mask |= 1 << col
+    return mask
+
 def tree_mask(seed, row):
     kind, _, _ = section(seed, row)
     if kind != "grass" or row < 2:
@@ -43,24 +70,21 @@ def tree_mask(seed, row):
         value = mix32(value + col + 1)
         if col != CENTER and value % 6 == 0:
             mask |= 1 << col
-    return mask
+    return mask & ~lily_bank_route(seed, row)
 
 def lily_mask(seed, row):
     kind, lane, width = section(seed, row)
     if kind != "lilies":
         return 0
-    # Every row has 2–4 pads. Center guarantees a continuous crossing,
-    # and tree_mask leaves the center clear on both banks.
+    # 2-4 pads with a connected seed-dependent route.
     value = mix32(seed ^ (row * 0x27d4eb2d))
-    mask = 1 << CENTER
+    mask = 1 << lily_route_col(seed, row)
     target = 2 + value % 3
-    start = (value >> 8) % WIDTH
     for step in range(WIDTH):
-        col = (start + step) % WIDTH
-        if col != CENTER:
-            mask |= 1 << col
-            if mask.bit_count() >= target:
-                break
+        col = (value + step * 5) % WIDTH
+        mask |= 1 << col
+        if mask.bit_count() >= target:
+            break
     return mask
 
 def log_mask(seed, row, phase):

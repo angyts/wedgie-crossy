@@ -17,11 +17,14 @@ class WorldGenTests(unittest.TestCase):
                 self.assertTrue(0<=width<=8)
                 self.assertFalse(m.tree_mask(seed,row) & (1<<m.CENTER))
                 if kind=="lilies":
-                    self.assertTrue(m.lily_mask(seed,row)&(1<<m.CENTER))
+                    self.assertTrue(m.lily_mask(seed,row)&(1<<m.lily_route_col(seed,row)))
                     self.assertGreaterEqual(m.lily_mask(seed,row).bit_count(),2)
                     self.assertLessEqual(m.lily_mask(seed,row).bit_count(),4)
-                    self.assertEqual(m.tree_mask(seed,row-1)&(1<<m.CENTER),0)
-                    self.assertEqual(m.tree_mask(seed,row+1)&(1<<m.CENTER),0)
+                    if m.section(seed,row-1)[0]=="lilies":
+                        self.assertLessEqual(abs(m.lily_route_col(seed,row)-m.lily_route_col(seed,row-1)),1)
+                    for bank in (row-1,row+1):
+                        if m.section(seed,bank)[0]=="grass":
+                            self.assertEqual(m.tree_mask(seed,bank)&m.lily_bank_route(seed,bank),0)
                     self.assertEqual(m.log_mask(seed,row,0),0)
                 if kind=="logs":
                     self.assertEqual(m.lily_mask(seed,row),0)
