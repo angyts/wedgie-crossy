@@ -1,0 +1,1 @@
+Log lengths now vary deterministically by lane: 3, 4 or 5 tiles. Direction, speed, and offsets remain per-lane. This changes collision masks, so run the full unit suite and reachability scan before hardware installation. Smooth pixel interpolation is not included in this commit.

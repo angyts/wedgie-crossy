@@ -128,11 +128,15 @@ def log_period(seed, row):
 def log_position(seed, row, phase):
     return (phase // log_period(seed, row)) * log_direction(seed, row)
 
+def log_length(seed, row):
+    """Deterministic 3-5 tile logs, varying by lane."""
+    return 3 + ((log_lane_value(seed, row) >> 16) % 3)
+
 def log_mask(seed, row, phase):
     kind, lane, width = section(seed, row)
     if kind != "logs":
         return 0
-    # Two broad four-cell trunks, with staggered lane origins.
+    # Two variable-length trunks, with staggered lane origins.
     # At phase zero, adjacent lanes differ by at most one cell, so
     # the player can enter a river without a permanent offset barrier.
     base = (log_section_value(seed, row) >> 8) % WIDTH
@@ -142,7 +146,7 @@ def log_mask(seed, row, phase):
     offset = log_position(seed, row, phase) % WIDTH
     mask = 0
     for start in (origin, (origin + 6) % WIDTH):
-        for cell in range(4):
+        for cell in range(log_length(seed, row)):
             mask |= 1 << ((start + cell + offset) % WIDTH)
     return mask
 
