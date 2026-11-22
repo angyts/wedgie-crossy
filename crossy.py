@@ -37,6 +37,10 @@ STAR = color(255, 210, 40)
 WATER = color(35, 105, 175)
 SPLASH = color(215, 240, 255)
 LOG = color(130, 83, 42)
+LOG_GRAIN = color(165, 111, 62)
+WATER_RIPPLE = color(65, 135, 195)
+TREE_HIGHLIGHT = color(28, 90, 38)
+SHOULDER = color(95, 105, 75)
 # Fixed positions (column, row) for repeatable hardware verification.
 TREES = ((6, 9), (4, 8), (2, 6), (9, 7), (8, 4), (3, 3))
 START_X = 110
@@ -128,7 +132,7 @@ def draw_scene(lcd, x, y, score=0):
 WINDOW = 12
 START_COL = 5
 START_ROW = 0
-CAMERA_LEAD = 8
+CAMERA_LEAD = 5  # Player settles near the screen center.
 MASK_ALL = (1 << GRID_SIZE) - 1
 
 def is_river(row):
@@ -305,13 +309,18 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         sy = (WINDOW - 1 - screen_row) * STEP
         if is_river(absolute):
             lcd.fill_rect(0, sy, 240, STEP, WATER)
+            for rx in range((absolute % 3) * 12, 240, 60):
+                lcd.fill_rect(rx, sy + 3, 10, 1, WATER_RIPPLE)
             logs = log_mask(absolute, phase)
             for lx in range(GRID_SIZE):
                 if logs & (1 << lx):
                     lcd.fill_rect(lx * STEP + 1, sy + 5, 18, 11, LOG)
+                    lcd.fill_rect(lx * STEP + 4, sy + 8, 11, 2, LOG_GRAIN)
             continue
         if is_road(absolute):
             lcd.fill_rect(0, sy, 240, STEP, ROAD)
+            lcd.fill_rect(0, sy + 2, 240, 1, SHOULDER)
+            lcd.fill_rect(0, sy + 17, 240, 1, SHOULDER)
             lcd.fill_rect(0, sy, 240, 2, ROAD_EDGE)
             lcd.fill_rect(0, sy + 18, 240, 2, ROAD_EDGE)
             for mark_x in range(0, 240, 40):
@@ -327,6 +336,8 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                 tx = x * STEP
                 lcd.fill_rect(tx + 8, sy + 11, 4, 7, TREE_TRUNK)
                 lcd.fill_rect(tx + 3, sy + 2, 14, 12, TREE_LEAVES)
+                if (absolute + x) & 1:
+                    lcd.fill_rect(tx + 5, sy + 4, 5, 3, TREE_HIGHLIGHT)
     screen_y = (WINDOW - 1 - (row - world.first)) * STEP
     # draw_chicken accepts the stage-5 logical origin offset.
     if dead and water_frame:

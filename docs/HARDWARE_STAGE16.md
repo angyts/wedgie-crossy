@@ -1,0 +1,1 @@
+Five updates: center-follow camera lead 5 (formerly 8), water ripples, log grain, tree foliage highlights, road shoulders. Physics and score unchanged. Host tests verify camera tracking and rectangle bounds; physical device verification still required.
