@@ -387,14 +387,19 @@ def animate_water(lcd, world, col, row, score, best, facing, phase, carried_off=
         time.sleep_ms(90)
 
 def animate_log_carry(lcd, world, old_col, row, score, best, facing,
-                      old_phase, new_phase):
+                      old_phase, new_phase, keys):
     """Four visual substeps; logical collision remains grid-based."""
     direction = -1 if (row // 24) & 1 else 1
+    queued = None
     for step in range(1, 5):
         draw_world(lcd, world, old_col, row, score, best, False, facing,
                    phase=old_phase if step < 3 else new_phase,
                    chicken_dx=direction * step * 5)
+        for pressed in keys.pressed():
+            if queued is None and pressed in ("up", "down", "left", "right"):
+                queued = pressed
         time.sleep_ms(25)
+    return queued
 
 def animate_crash(lcd, world, col, row, score, best, facing, phase):
     """Brief non-blocking-to-firmware animation with a bounded duration."""
@@ -436,6 +441,7 @@ def run():
         next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(score) * FRAME_MS)
         crash_animated = False
         death_kind = None
+        queued_direction = None
         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
         debug("05 world shown, seed=%d" % seed)
         while True:
@@ -452,8 +458,10 @@ def run():
                         else:
                             old_col = col
                             col = carried
-                            animate_log_carry(lcd, world, old_col, row, score,
-                                              best, facing, phase, next_phase)
+                            captured = animate_log_carry(lcd, world, old_col, row, score,
+                                                         best, facing, phase, next_phase, keys)
+                            if queued_direction is None:
+                                queued_direction = captured
                     else:
                         dead = True
                         death_kind = "water"
@@ -478,7 +486,12 @@ def run():
                                dead=False, phase=phase)
                 next_traffic_at = time.ticks_add(
                     time.ticks_ms(), traffic_interval(score) * FRAME_MS)
-            for key in keys.pressed():
+            if queued_direction is not None:
+                inputs = (queued_direction,)
+                queued_direction = None
+            else:
+                inputs = keys.pressed()
+            for key in inputs:
                 if dead:
                     if key == "A":
                         world = World(seed)
