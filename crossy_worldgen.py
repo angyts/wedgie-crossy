@@ -110,11 +110,16 @@ def lily_mask(seed, row):
             break
     return mask
 
+def log_section_value(seed, row):
+    """Shared movement parameters keep adjacent log lanes crossable."""
+    block = (row - 8) // BLOCK
+    return mix32(seed ^ (block * 0x7f4a7c15))
+
 def log_direction(seed, row):
-    return -1 if mix32(seed ^ (row * 0x7f4a7c15)) & 1 else 1
+    return -1 if log_section_value(seed, row) & 1 else 1
 
 def log_period(seed, row):
-    return 1 + mix32(seed ^ (row * 0x165667b1)) % 2
+    return 1 + (log_section_value(seed, row) >> 3) % 2
 
 def log_position(seed, row, phase):
     return (phase // log_period(seed, row)) * log_direction(seed, row)
@@ -123,8 +128,11 @@ def log_mask(seed, row, phase):
     kind, lane, width = section(seed, row)
     if kind != "logs":
         return 0
+    # The two 3-cell trunks are aligned throughout a log section.
+    # Players can step vertically between lanes without an impossible
+    # fixed phase offset. Different sections still vary speed/direction.
+    origin = (log_section_value(seed, row) >> 8) % WIDTH
     offset = log_position(seed, row, phase) % WIDTH
-    origin = mix32(seed ^ row) % WIDTH
     mask = 0
     for start in (origin, (origin + 6) % WIDTH):
         for cell in range(3):
