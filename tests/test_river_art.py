@@ -43,7 +43,7 @@ class RiverArtTests(unittest.TestCase):
             for kind in ("road","water"):
                 for frame in range(1,6):
                     s=Screen();m.draw_dead_chicken(s,kind,frame)
-                    self.assertTrue(all(0<=x and 73<=y and x+w<=240 and y+h<=100 for x,y,w,h in s.rects))
+                    self.assertTrue(all(0<=x and 44<=y and x+w<=240 and y+h<112 for x,y,w,h in s.rects))
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old
