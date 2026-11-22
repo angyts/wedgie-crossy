@@ -22,7 +22,10 @@ class WheelSquashTests(unittest.TestCase):
                 s=Screen();m.draw_dead_chicken(s,"road",frame)
                 self.assertTrue(all(0<=x and 44<=y and x+w<=240 and y+h<112 and w>0 and h>0 for x,y,w,h,c in s.rects))
                 self.assertTrue(any(w>=60 and c==m.CAR for x,y,w,h,c in s.rects))
-                self.assertTrue(any(w==32 and c==m.CAR_WHEEL for x,y,w,h,c in s.rects))
+                wheels=[(x,y,w,h) for x,y,w,h,c in s.rects
+                        if w==27 and h==29 and c==m.CAR_WHEEL]
+                self.assertEqual(len(wheels),2)
+                self.assertEqual(wheels[1][0]-wheels[0][0],31)
                 heights.append(next(h for x,y,w,h,c in s.rects if c==m.CHICKEN))
             self.assertEqual(heights,sorted(heights,reverse=True))
             self.assertLess(heights[-1],heights[0])
