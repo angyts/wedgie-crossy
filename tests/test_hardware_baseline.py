@@ -113,6 +113,31 @@ class BootSmokeTests(unittest.TestCase):
             else:
                 sys.modules["lcd"] = old_lcd
 
+    def test_score_only_increases_with_upward_progress(self):
+        fake_lcd = types.ModuleType("lcd")
+        fake_lcd.LCD = LCDStub
+        fake_lcd.Keys = KeysStub
+        fake_lcd.color = lambda r, g, b: (r, g, b)
+        old_lcd = sys.modules.get("lcd")
+        try:
+            sys.modules["lcd"] = fake_lcd
+            spec = importlib.util.spec_from_file_location("crossy_scoring", APP)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            best = 9
+            self.assertEqual(module.score_value(best), 0)
+            best = module.score_for_row(best, 169)
+            self.assertEqual(module.score_value(best), 1)
+            best = module.score_for_row(best, 189)
+            self.assertEqual(module.score_value(best), 1)
+            best = module.score_for_row(best, 149)
+            self.assertEqual(module.score_value(best), 2)
+        finally:
+            if old_lcd is None:
+                sys.modules.pop("lcd", None)
+            else:
+                sys.modules["lcd"] = old_lcd
+
     def test_entry_draws_ready_and_polls_input(self):
         screen = LCDStub()
         polls = []
@@ -146,7 +171,8 @@ class BootSmokeTests(unittest.TestCase):
             else:
                 sys.modules["time"] = old_time
         self.assertIn(("text", "WEDGIE CROSSY"), screen.calls)
-        self.assertIn(("text", "TREES + BLOCK"), screen.calls)
+        self.assertIn(("text", "SCORE 0"), screen.calls)
+        self.assertIn(("text", "A RESET"), screen.calls)
         rects = [c for c in screen.calls if c[0] == "fill_rect"]
         self.assertEqual(len(rects), 90)
         self.assertEqual(len([c for c in rects if c[3] == 20 and c[4] == 20]), 72)

@@ -1,4 +1,4 @@
-"""Crossy hardware checkpoint 4: fixed trees and blocking collisions.
+"""Crossy hardware checkpoint 5: score, HUD and A-button restart.
 
 Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
@@ -52,6 +52,14 @@ def draw_trees(lcd):
         lcd.fill_rect(tx + 8, ty + 11, 4, 7, TREE_TRUNK)
         lcd.fill_rect(tx + 3, ty + 2, 14, 12, TREE_LEAVES)
 
+def score_for_row(best_row, y):
+    """Score only new upward progress; moving down never reduces it."""
+    row = (y - MIN_Y) // STEP
+    return min(best_row, row)
+
+def score_value(best_row):
+    return (START_Y - (MIN_Y + best_row * STEP)) // STEP
+
 def draw_chicken(lcd, x, y):
     """Draw chicken inside the same 20-pixel tile used by tree collision."""
     x, y = x - MIN_X, y - MIN_Y
@@ -73,11 +81,12 @@ def debug(message):
     if DEBUG:
         print("[CROSSY BOOT]", message)
 
-def draw_scene(lcd, x, y):
+def draw_scene(lcd, x, y, score=0):
     lcd.fill(BG)
     draw_grid(lcd)
     lcd.text("WEDGIE CROSSY", 48, 4, INK)
-    lcd.text("TREES + BLOCK", 68, 16, INK)
+    lcd.text("SCORE %d" % score, 4, 20, INK)
+    lcd.text("A RESET", 170, 20, INK)
     draw_trees(lcd)
     draw_chicken(lcd, x, y)
     lcd.show()
@@ -93,16 +102,25 @@ def run():
         keys = Keys()
         debug("04 drawing fixed trees and grass grid")
         x, y = START_X, START_Y
-        draw_scene(lcd, x, y)
+        best_row = (START_Y - MIN_Y) // STEP
+        draw_scene(lcd, x, y, 0)
         debug("05 frame shown; polling directional presses")
         while True:
             for key in keys.pressed():
+                if key == "A":
+                    x, y = START_X, START_Y
+                    best_row = (START_Y - MIN_Y) // STEP
+                    debug("reset score=0")
+                    draw_scene(lcd, x, y, 0)
+                    break
                 if key in ("up", "down", "left", "right"):
                     next_x, next_y = try_move(x, y, key)
                     if (next_x, next_y) != (x, y):
                         x, y = next_x, next_y
-                        debug("move %s -> %d,%d" % (key, x, y))
-                        draw_scene(lcd, x, y)
+                        best_row = score_for_row(best_row, y)
+                        score = score_value(best_row)
+                        debug("move %s -> %d,%d score=%d" % (key, x, y, score))
+                        draw_scene(lcd, x, y, score)
                     else:
                         debug("blocked %s at %d,%d" % (key, x, y))
                     break
