@@ -1,0 +1,1 @@
+After death, any recognized game button (A, B, Y, up, down, left, right) starts a new run. Unknown key values are ignored. Existing restart seed, score reset, development-mode flash behavior and game-over messages are unchanged. Test on device after running the unit suite.

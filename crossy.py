@@ -850,7 +850,7 @@ def run():
                 inputs = keys.pressed()
             for key in inputs:
                 if dead:
-                    if key == "A":
+                    if key in ("A", "B", "Y", "up", "down", "left", "right"):
                         seed = new_run_seed(time.ticks_ms())
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
