@@ -141,11 +141,17 @@ def is_river(row):
     """Sparse river rows, separated from roads."""
     return row >= 12 and row % 24 == 12
 
+def river_type(row):
+    """Alternating river styles: first logs, second lily pads."""
+    if not is_river(row):
+        return None
+    return "logs" if (row // 24) % 2 == 0 else "lilies"
+
 def lily_mask(row):
     """Single stationary lily pad on selected river rows."""
-    if not is_river(row):
+    if river_type(row) != "lilies":
         return 0
-    return 1 << (5 if (row // 24) % 2 == 0 else 4)
+    return 1 << START_COL
 
 def on_lily(row, col):
     return bool(lily_mask(row) & (1 << col))
@@ -155,7 +161,7 @@ def water_supported(row, col, phase):
 
 def log_mask(row, phase):
     """Two three-cell logs; positions wrap at the edges."""
-    if not is_river(row):
+    if river_type(row) != "logs":
         return 0
     shift = (phase * (-1 if (row // 24) & 1 else 1)) % GRID_SIZE
     mask = 0
@@ -266,9 +272,10 @@ def move_world(world, col, row, direction):
 def milestone(score):
     return score if score > 0 and score % 10 == 0 else 0
 
-def car_color(row, col):
-    """Color depends on vehicle position, not just road band."""
-    return (CAR, CAR_BLUE, CAR_YELLOW)[(row // 12 + col // 3) % 3]
+def car_color(row, col, phase=0):
+    """Color follows the vehicle from its original column, including wraps."""
+    origin = (col - phase * traffic_direction(row)) % GRID_SIZE
+    return (CAR, CAR_BLUE, CAR_YELLOW)[(row // 12 + origin // 3) % 3]
 
 def car_style(row):
     """Deterministic visual variant per road band."""
@@ -302,9 +309,9 @@ def draw_splash(lcd, x, y, frame):
         lcd.fill_rect(left, top, 2, bottom - top, SPLASH)
         lcd.fill_rect(right - 2, top, 2, bottom - top, SPLASH)
 
-def draw_car(lcd, x, y, row=6):
+def draw_car(lcd, x, y, row=6, phase=0):
     """Compact vehicle silhouette with windshield and wheels."""
-    body = car_color(row, x // STEP)
+    body = car_color(row, x // STEP, phase)
     length = car_length(row)
     left = (STEP - length) // 2
     lcd.fill_rect(x + left, y + 5, length, 10, body)
@@ -351,7 +358,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             cars = moving_car_mask(world.seed, absolute, phase)
             for cx in range(GRID_SIZE):
                 if cars & (1 << cx):
-                    draw_car(lcd, cx * STEP, sy, absolute)
+                    draw_car(lcd, cx * STEP, sy, absolute, phase)
             continue
         mask = world.mask(absolute)
         for x in range(GRID_SIZE):
