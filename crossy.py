@@ -34,6 +34,9 @@ CAR = color(210, 55, 45)
 CAR_WINDOW = color(125, 190, 205)
 CAR_WHEEL = color(25, 30, 35)
 STAR = color(255, 210, 40)
+WATER = color(35, 105, 175)
+SPLASH = color(215, 240, 255)
+LOG = color(130, 83, 42)
 # Fixed positions (column, row) for repeatable hardware verification.
 TREES = ((6, 9), (4, 8), (2, 6), (9, 7), (8, 4), (3, 3))
 START_X = 110
@@ -128,6 +131,32 @@ START_ROW = 0
 CAMERA_LEAD = 8
 MASK_ALL = (1 << GRID_SIZE) - 1
 
+def is_river(row):
+    """Sparse river rows, separated from roads."""
+    return row >= 12 and row % 24 == 12
+
+def log_mask(row, phase):
+    """Two three-cell logs; positions wrap at the edges."""
+    if not is_river(row):
+        return 0
+    shift = (phase * (-1 if (row // 24) & 1 else 1)) % GRID_SIZE
+    mask = 0
+    for start in (1, 7):
+        for i in range(3):
+            mask |= 1 << ((start + i + shift) % GRID_SIZE)
+    return mask
+
+def supported_by_log(row, col, phase):
+    return bool(log_mask(row, phase) & (1 << col))
+
+def carry_on_log(row, col, phase):
+    """Carry one tile; returning None indicates off-screen drift."""
+    direction = -1 if (row // 24) & 1 else 1
+    new_col = col + direction
+    if new_col < 0 or new_col >= GRID_SIZE:
+        return None
+    return new_col
+
 def is_road(row):
     """Sparse, static test roads; no moving traffic in this checkpoint."""
     return row >= 6 and row % 12 == 6
@@ -158,7 +187,7 @@ def traffic_sweep_hit(seed, row, col, old_phase, new_phase):
 
 def row_mask(seed, row):
     """Stable per-row generation; column 5 always remains clear."""
-    if row < 2 or is_road(row):
+    if row < 2 or is_road(row) or is_river(row):
         return 0
     value = (seed ^ ((row + 1) * 0x9e3779b9)) & 0xffffffff
     value ^= value >> 16
@@ -237,6 +266,20 @@ def traffic_interval(score):
     """Difficulty increases at scores 30 and 60, never below two ticks."""
     return max(2, TRAFFIC_TICKS - score // 30)
 
+def draw_splash(lcd, x, y, frame):
+    """Expanding pixel rings; fixed number of bounded rectangles."""
+    cx, cy = x + 10, y + 10
+    radius = 2 + frame * 2
+    left = max(0, cx - radius)
+    right = min(240, cx + radius)
+    top = max(0, cy - radius)
+    bottom = min(240, cy + radius)
+    if right > left and bottom > top:
+        lcd.fill_rect(left, top, right - left, 2, SPLASH)
+        lcd.fill_rect(left, bottom - 2, right - left, 2, SPLASH)
+        lcd.fill_rect(left, top, 2, bottom - top, SPLASH)
+        lcd.fill_rect(right - 2, top, 2, bottom - top, SPLASH)
+
 def draw_car(lcd, x, y, row=6):
     """Compact vehicle silhouette with windshield and wheels."""
     body = (CAR, CAR_BLUE, CAR_YELLOW)[car_style(row)]
@@ -255,11 +298,18 @@ def draw_crash_star(lcd, x, y, frame):
     lcd.fill_rect(max(0, cx - size), cy - 2, min(240 - max(0, cx - size), size * 2), 4, STAR)
     lcd.fill_rect(cx - 2, max(0, cy - size), 4, min(240 - max(0, cy - size), size * 2), STAR)
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
         sy = (WINDOW - 1 - screen_row) * STEP
+        if is_river(absolute):
+            lcd.fill_rect(0, sy, 240, STEP, WATER)
+            logs = log_mask(absolute, phase)
+            for lx in range(GRID_SIZE):
+                if logs & (1 << lx):
+                    lcd.fill_rect(lx * STEP + 1, sy + 5, 18, 11, LOG)
+            continue
         if is_road(absolute):
             lcd.fill_rect(0, sy, 240, STEP, ROAD)
             lcd.fill_rect(0, sy, 240, 2, ROAD_EDGE)
@@ -279,7 +329,9 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                 lcd.fill_rect(tx + 3, sy + 2, 14, 12, TREE_LEAVES)
     screen_y = (WINDOW - 1 - (row - world.first)) * STEP
     # draw_chicken accepts the stage-5 logical origin offset.
-    if dead and crash_frame:
+    if dead and water_frame:
+        draw_splash(lcd, col * STEP, screen_y, water_frame)
+    elif dead and crash_frame:
         draw_crash_star(lcd, col * STEP, screen_y, crash_frame)
     elif not dead:
         draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
@@ -307,6 +359,18 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.fill_rect(54, 136, 12, 12, color(45, 205, 80))
         lcd.text("NEW RUN", 76, 138, INK)
     lcd.show()
+
+def animate_water(lcd, world, col, row, score, best, facing, phase, carried_off=False):
+    """Short splash sequence, with an edge struggle before falling off."""
+    if carried_off:
+        for _ in range(2):
+            draw_world(lcd, world, col, row, score, best, False, facing,
+                       dead=False, phase=phase)
+            time.sleep_ms(80)
+    for frame in range(1, 5):
+        draw_world(lcd, world, col, row, score, best, False, facing,
+                   dead=True, phase=phase, water_frame=frame)
+        time.sleep_ms(90)
 
 def animate_crash(lcd, world, col, row, score, best, facing, phase):
     """Brief non-blocking-to-firmware animation with a bounded duration."""
@@ -347,6 +411,7 @@ def run():
         phase = 0
         next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(score) * FRAME_MS)
         crash_animated = False
+        death_kind = None
         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
         debug("05 world shown, seed=%d" % seed)
         while True:
@@ -354,14 +419,32 @@ def run():
             # LCD frame cannot make cars skip several cells to catch up.
             if not paused and not dead and traffic_due(time.ticks_ms(), next_traffic_at):
                 next_phase = next_traffic_phase(phase)
-                if is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
+                if is_river(row):
+                    if supported_by_log(row, col, phase):
+                        carried = carry_on_log(row, col, phase)
+                        if carried is None:
+                            dead = True
+                            death_kind = "offscreen"
+                        else:
+                            col = carried
+                    else:
+                        dead = True
+                        death_kind = "water"
+                    if not dead and not supported_by_log(row, col, next_phase):
+                        dead = True
+                        death_kind = "water"
+                if not dead and is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
                     dead = True
                     crash_animated = False
                     debug("traffic collision row=%d col=%d phase=%d" %
                           (row, col, next_phase))
                 phase = next_phase
                 if dead:
-                    animate_crash(lcd, world, col, row, score, best, facing, phase)
+                    if death_kind in ("water", "offscreen"):
+                        animate_water(lcd, world, col, row, score, best, facing, phase,
+                                      death_kind == "offscreen")
+                    else:
+                        animate_crash(lcd, world, col, row, score, best, facing, phase)
                     crash_animated = True
                 else:
                     draw_world(lcd, world, col, row, score, best, paused, facing,
@@ -378,6 +461,7 @@ def run():
                         facing = "down"
                         dead = False
                         crash_animated = False
+                        death_kind = None
                         draw_world(lcd, world, col, row, score, best, False, facing, phase=phase)
                     break
                 if key == "Y" and not paused:
@@ -404,6 +488,7 @@ def run():
                         next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(0) * FRAME_MS)
                         facing = "right"
                         paused = False
+                        death_kind = None
                         debug("new run")
                         draw_world(lcd, world, col, row, score, best, paused, facing)
                     break
@@ -412,7 +497,12 @@ def run():
                     if (nc, nr) != (col, row):
                         col, row = nc, nr
                         facing = key
-                        dead = road_hit(seed, row, col, phase)
+                        death_kind = None
+                        if is_river(row) and not supported_by_log(row, col, phase):
+                            dead = True
+                            death_kind = "water"
+                        else:
+                            dead = road_hit(seed, row, col, phase)
                         if dead:
                             crash_animated = False
                         if row > score:
@@ -432,7 +522,10 @@ def run():
                                 except OSError as exc:
                                     debug("best save failed: %r" % (exc,))
                         if dead and not crash_animated:
-                            animate_crash(lcd, world, col, row, score, best, facing, phase)
+                            if death_kind == "water":
+                                animate_water(lcd, world, col, row, score, best, facing, phase)
+                            else:
+                                animate_crash(lcd, world, col, row, score, best, facing, phase)
                             crash_animated = True
                         else:
                             draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead, phase=phase)
