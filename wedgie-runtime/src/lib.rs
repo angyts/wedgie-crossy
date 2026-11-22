@@ -2,6 +2,8 @@
 //! Small, allocation-free gameplay foundation.
 //! Grass-only until hazard physics matches the Python reference.
 
+pub mod world;
+
 pub const WIDTH: i16 = 12;
 pub const WINDOW_ROWS: usize = 16;
 pub const MAX_TREES: u16 = (1 << WIDTH) - 1;
