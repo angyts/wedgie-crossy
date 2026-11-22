@@ -9,6 +9,7 @@ try:
 except ImportError:
     gc = None
 import crossy_worldgen as worldgen
+from traffic_motion import pixel_offset
 from lcd import LCD, Keys, color
 
 DEBUG = True
@@ -30,7 +31,9 @@ TRAFFIC_TICKS = 3
 SMOOTH_TRAFFIC = True  # Set False if LCD transfers are too slow.
 SMOOTH_STEPS = (5, 10, 15)  # Maximum intermediate positions.
 SMOOTH_BUDGET_MS = 65  # Skip late cosmetic frames; never delay controls.
-SMOOTH_TRAFFIC = False
+SMOOTH_TRAFFIC = True
+SMOOTH_FRAME_MS = 40  # Cap partial LCD transfers; skip frames if slow.
+# Visual interpolation only: player lane remains grid-rendered for safety.
 # One intermediate visual frame; logical collisions remain grid-based.
 # Maximum one grid-cell advance per traffic update, independent of FPS.
 CRASH_FRAMES = 5
@@ -708,6 +711,52 @@ def preview_traffic(lcd, world, old_phase, new_phase, player_row, keys):
                 cx += 1
     return pending
 
+def render_road_motion(lcd, world, phase, player_row, elapsed_ms, interval_ms):
+    """Non-blocking road-only interpolation between traffic ticks.
+
+    Never animate the player's lane: collision remains authoritative at
+    integer traffic phases. Skip rendering when no pixel has advanced.
+    """
+    if not SMOOTH_TRAFFIC or not hasattr(lcd, "show_rect"):
+        return
+    step = pixel_offset(elapsed_ms, interval_ms, STEP)
+    if step <= 0 or step >= STEP:
+        return
+    for index in range(WINDOW):
+        absolute = world.first + index
+        if absolute == player_row or terrain_kind(world.seed, absolute) != "road":
+            continue
+        old_mask = generated_mask(world.seed, absolute, phase)
+        if not old_mask:
+            continue
+        next_mask = generated_mask(world.seed, absolute, phase + 1)
+        if old_mask == next_mask:
+            continue
+        sy = (WINDOW - 1 - index) * STEP
+        lcd.fill_rect(0, sy, 240, STEP, ROAD)
+        lcd.fill_rect(0, sy, 240, 2, ROAD_EDGE)
+        lcd.fill_rect(0, sy + 18, 240, 2, ROAD_EDGE)
+        lcd.fill_rect(0, sy + 2, 240, 1, SHOULDER)
+        lcd.fill_rect(0, sy + 17, 240, 1, SHOULDER)
+        stripe_shift = (worldgen.mix32(world.seed ^ absolute) & 1) * 8
+        for mark_x in range(0, 240, 40):
+            mx = mark_x + 8 + stripe_shift
+            if mx + 16 <= 240:
+                lcd.fill_rect(mx, sy + 9, 16, 2, ROAD_MARK)
+        direction = worldgen.road_direction(world.seed, absolute)
+        clip = ClippedLCD(lcd, 0, sy, STEP)
+        for cx in range(GRID_SIZE):
+            if old_mask & (1 << cx):
+                for wrap in (-240, 0, 240):
+                    px = cx * STEP + direction * step + wrap
+                    if -STEP < px < 240:
+                        draw_car(clip, px, sy, absolute, phase,
+                                 world.seed, identity_col=cx)
+        # A row-wide partial flush is conservative: it restores every
+        # stripe and wrapped sprite without a full-screen transfer.
+        lcd.show_rect(0, sy, 240, STEP)
+
+
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None, previous_phase=None):
     global _render_frames, _render_total_ms, _render_max_ms
     render_started = time.ticks_ms() if PROFILE_RENDER else 0
@@ -925,6 +974,8 @@ def run():
         crash_animated = False
         death_kind = None
         queued_direction = None
+        last_smooth_at = time.ticks_ms()
+        last_smooth_step = -1
         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
         debug("05 world shown, seed=%d" % seed)
         while True:
@@ -986,6 +1037,21 @@ def run():
                                previous_phase=phase - 1)
                 next_traffic_at = time.ticks_add(
                     time.ticks_ms(), traffic_interval(score) * FRAME_MS)
+                last_smooth_step = -1
+            # Render between simulation ticks, never delaying a due tick.
+            # A slow LCD simply reduces cosmetic FPS, not input cadence.
+            if not paused and not dead and queued_direction is None and SMOOTH_TRAFFIC:
+                now = time.ticks_ms()
+                interval_ms = traffic_interval(score) * FRAME_MS
+                remaining = time.ticks_diff(next_traffic_at, now)
+                elapsed = interval_ms - remaining
+                step = pixel_offset(elapsed, interval_ms, STEP)
+                if (0 < step < STEP and step != last_smooth_step
+                        and time.ticks_diff(now, last_smooth_at) >= SMOOTH_FRAME_MS
+                        and remaining > SMOOTH_FRAME_MS):
+                    render_road_motion(lcd, world, phase, row, elapsed, interval_ms)
+                    last_smooth_at = time.ticks_ms()
+                    last_smooth_step = step
             if queued_direction is not None:
                 inputs = (queued_direction,)
                 queued_direction = None
