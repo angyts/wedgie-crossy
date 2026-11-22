@@ -768,6 +768,9 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
         sy = (WINDOW - 1 - screen_row) * STEP
+        # The uppermost 20 pixels belong exclusively to the HUD.
+        if screen_row == WINDOW - 1:
+            continue
         if dirty_rows is not None and absolute not in dirty_rows:
             continue
         if dirty_rows is not None:
@@ -884,6 +887,9 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         # Snake's proven partial LCD transfer API. Only rows repainted
         # in the framebuffer are sent to the panel.
         for absolute in dirty_rows:
+            # Never transfer hazard footprints over the scoreboard.
+            if absolute == world.first + WINDOW - 1:
+                continue
             if world.first <= absolute <= world.last:
                 sy = (WINDOW - 1 - (absolute - world.first)) * STEP
                 kind = terrain_kind(world.seed, absolute)
