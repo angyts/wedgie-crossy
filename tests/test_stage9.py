@@ -29,10 +29,10 @@ class HUDTests(unittest.TestCase):
                 def show(self): pass
             normal, highlight, paused = Screen(), Screen(), Screen()
             world = m.World(123)
-            m.draw_world(normal, world, 5, 0, 10, 20)
+            m.draw_world(normal, world, 5, 0, 11, 20)
             m.draw_world(highlight, world, 5, 0, 10, 20, milestone_active=True)
             m.draw_world(paused, world, 5, 0, 10, 20, paused=True)
-            self.assertEqual(sum(s == "SCORE 10" for s,x,y,c in normal.texts), 1)
+            self.assertEqual(sum(s == "SCORE 11" for s,x,y,c in normal.texts), 1)
             self.assertEqual(sum(s == "SCORE 10" for s,x,y,c in highlight.texts), 2)
             self.assertFalse(any(s == "x10" for s,x,y,c in highlight.texts))
             self.assertFalse(any(s == "ROW 10!" for s,x,y,c in highlight.texts))

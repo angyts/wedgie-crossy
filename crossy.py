@@ -4,7 +4,6 @@ Known working reference: angyts/wedgie-snake-game/snake/snake.py.
 Use wedgie.py install . to launch via wedgie.json entry=run.
 """
 import time
-import save
 from lcd import LCD, Keys, color
 
 DEBUG = True
@@ -192,9 +191,9 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
     # Minimal HUD. A tenth-row milestone briefly changes score color.
     lcd.fill_rect(0, 0, 240, 20, BG)
-    score_color = CHICKEN if milestone_active else INK
+    score_color = CHICKEN if milestone(score) else INK
     lcd.text("SCORE %d" % score, 4, 5, score_color)
-    if milestone_active:
+    if milestone(score):
         lcd.text("SCORE %d" % score, 5, 5, score_color)
     lcd.text("BEST %d" % best, 145, 5, INK)
     if paused:
@@ -208,6 +207,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     lcd.show()
 
 def run():
+    import save  # Firmware-only module; host logic tests can import crossy without it.
     debug("01 run entered")
     lcd = None
     try:
@@ -230,7 +230,6 @@ def run():
         col, row, score = START_COL, START_ROW, 0
         paused = False
         facing = "down"
-        milestone_until = None
         draw_world(lcd, world, col, row, score, best, paused, facing)
         debug("05 world shown, seed=%d" % seed)
         while True:
@@ -255,7 +254,6 @@ def run():
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
                         facing = "right"
-                        milestone_until = None
                         paused = False
                         debug("new run")
                         draw_world(lcd, world, col, row, score, best, paused, facing)
@@ -267,8 +265,6 @@ def run():
                         facing = key
                         if row > score:
                             score = row
-                            if milestone(score):
-                                milestone_until = time.ticks_add(time.ticks_ms(), 900)
                             if score > best:
                                 best = score
                             if milestone(score) and best > saved_best:
@@ -281,16 +277,10 @@ def run():
                             world.advance(row - CAMERA_LEAD)
                         debug("move %s row=%d col=%d score=%d window=%d..%d" %
                               (key, row, col, score, world.first, world.last))
-                        draw_world(lcd, world, col, row, score, best, paused, facing,
-                                   milestone_until is not None)
+                        draw_world(lcd, world, col, row, score, best, paused, facing)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
-            if milestone_until is not None and time.ticks_diff(
-                    time.ticks_ms(), milestone_until) >= 0:
-                milestone_until = None
-                if not paused:
-                    draw_world(lcd, world, col, row, score, best, paused, facing)
             time.sleep_ms(FRAME_MS)
     except Exception as exc:
         debug("ERROR: %r" % (exc,))
