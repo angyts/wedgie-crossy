@@ -12,6 +12,7 @@ FRAME_MS = 100
 # Switch to False for release builds after hardware validation.
 DEV_MODE = True
 TRAFFIC_TICKS = 3
+# Maximum one grid-cell advance per traffic update, independent of FPS.
 CRASH_FRAMES = 5
 CRASH_FRAME_MS = 90
 BG = color(22, 90, 45)
@@ -225,6 +226,13 @@ def car_style(row):
 def car_length(row):
     return 18 if car_style(row) == 2 else 16
 
+def next_traffic_phase(phase):
+    """Never recompute absolute phase from score-dependent intervals."""
+    return phase + 1
+
+def traffic_due(now, deadline):
+    return time.ticks_diff(now, deadline) >= 0
+
 def traffic_interval(score):
     """Difficulty increases at scores 30 and 60, never below two ticks."""
     return max(2, TRAFFIC_TICKS - score // 30)
@@ -336,34 +344,37 @@ def run():
         paused = False
         facing = "down"
         dead = False
-        traffic_tick = 0
         phase = 0
+        next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(score) * FRAME_MS)
         crash_animated = False
         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
         debug("05 world shown, seed=%d" % seed)
         while True:
-            # Traffic advances only during active gameplay, not while paused/dead.
-            if not paused and not dead:
-                traffic_tick += 1
-                next_phase = traffic_tick // traffic_interval(score)
-                if next_phase != phase:
-                    if is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
-                        dead = True
-                        crash_animated = False
-                        debug("traffic collision row=%d col=%d" % (row, col))
-                    phase = next_phase
-                    if dead:
-                        animate_crash(lcd, world, col, row, score, best, facing, phase)
-                        crash_animated = True
-                    else:
-                        draw_world(lcd, world, col, row, score, best, paused, facing,
-                                   dead=False, phase=phase)
+            # Time-based scheduling. One cell maximum per update; a delayed
+            # LCD frame cannot make cars skip several cells to catch up.
+            if not paused and not dead and traffic_due(time.ticks_ms(), next_traffic_at):
+                next_phase = next_traffic_phase(phase)
+                if is_road(row) and traffic_sweep_hit(seed, row, col, phase, next_phase):
+                    dead = True
+                    crash_animated = False
+                    debug("traffic collision row=%d col=%d phase=%d" %
+                          (row, col, next_phase))
+                phase = next_phase
+                if dead:
+                    animate_crash(lcd, world, col, row, score, best, facing, phase)
+                    crash_animated = True
+                else:
+                    draw_world(lcd, world, col, row, score, best, paused, facing,
+                               dead=False, phase=phase)
+                next_traffic_at = time.ticks_add(
+                    time.ticks_ms(), traffic_interval(score) * FRAME_MS)
             for key in keys.pressed():
                 if dead:
                     if key == "A":
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
-                        traffic_tick, phase = 0, 0
+                        phase = 0
+                        next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(0) * FRAME_MS)
                         facing = "down"
                         dead = False
                         crash_animated = False
@@ -377,6 +388,7 @@ def run():
                 if paused:
                     if key in ("B", "Y"):
                         paused = False
+                        next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(score) * FRAME_MS)
                         debug("resumed")
                         draw_world(lcd, world, col, row, score, best, paused, facing)
                     elif key == "A":
@@ -388,7 +400,8 @@ def run():
                                 debug("best save failed: %r" % (exc,))
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
-                        traffic_tick, phase = 0, 0
+                        phase = 0
+                        next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(0) * FRAME_MS)
                         facing = "right"
                         paused = False
                         debug("new run")

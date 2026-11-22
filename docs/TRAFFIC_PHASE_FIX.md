@@ -1,0 +1,3 @@
+# Traffic phase fix: row 30
+
+Previously `next_phase = traffic_tick // traffic_interval(score)` changed the absolute car position when the interval decreased at score 30, making cars teleport. Traffic phase now increments by exactly one per elapsed-time deadline. After a slow render, it schedules the next deadline from the current time rather than trying to catch up. Pause/resume and restart reschedule the deadline; collision checks use the same phase as rendering. This fixes the identified jump, but cars still animate in discrete 20-pixel steps, not smooth subpixel motion. Development mode remains enabled with no flash score writes. Test on physical Wedgie before adding further hazards.

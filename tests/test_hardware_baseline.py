@@ -154,6 +154,9 @@ class BootSmokeTests(unittest.TestCase):
             self.assertEqual(ms, 100)
             raise StopAfterFirstSleep()
         fake_time.sleep_ms = sleep
+        fake_time.ticks_ms = lambda: 0
+        fake_time.ticks_add = lambda a, b: a + b
+        fake_time.ticks_diff = lambda a, b: a - b
         old_lcd = sys.modules.get("lcd")
         old_time = sys.modules.get("time")
         old_save = sys.modules.get("save")
