@@ -1,0 +1,1 @@
+River drowning displays ALWAYS WATCH / WHERE YOU STEP. Being carried off displays MUST ALWAYS / BE DECISIVE. Road crash text is unchanged. Log carrying now interpolates the chicken by four 5px substeps, but log movement and collisions remain discrete. Hardware testing required.

@@ -298,7 +298,7 @@ def draw_crash_star(lcd, x, y, frame):
     lcd.fill_rect(max(0, cx - size), cy - 2, min(240 - max(0, cx - size), size * 2), 4, STAR)
     lcd.fill_rect(cx - 2, max(0, cy - size), 4, min(240 - max(0, cy - size), size * 2), STAR)
 
-def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0):
+def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
         absolute = world.first + screen_row
@@ -334,7 +334,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     elif dead and crash_frame:
         draw_crash_star(lcd, col * STEP, screen_y, crash_frame)
     elif not dead:
-        draw_chicken(lcd, MIN_X + col * STEP, MIN_Y + screen_y, facing)
+        draw_chicken(lcd, MIN_X + col * STEP + chicken_dx, MIN_Y + screen_y, facing)
     # Minimal HUD. A tenth-row milestone briefly changes score color.
     lcd.fill_rect(0, 0, 240, 20, BG)
     score_color = CHICKEN if milestone(score) else INK
@@ -344,9 +344,16 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     lcd.text("BEST %d" % best, 145, 5, INK)
     if dead:
         lcd.fill_rect(8, 73, 224, 112, BG)
-        lcd.text("ALWAYS LOOK", 64, 84, INK)
-        lcd.text("BEFORE YOU", 68, 100, INK)
-        lcd.text("CROSS THE ROAD", 49, 116, INK)
+        if death_kind == "water":
+            lcd.text("ALWAYS WATCH", 56, 84, INK)
+            lcd.text("WHERE YOU STEP", 48, 104, INK)
+        elif death_kind == "offscreen":
+            lcd.text("MUST ALWAYS", 65, 84, INK)
+            lcd.text("BE DECISIVE", 70, 104, INK)
+        else:
+            lcd.text("ALWAYS LOOK", 64, 84, INK)
+            lcd.text("BEFORE YOU", 68, 100, INK)
+            lcd.text("CROSS THE ROAD", 49, 116, INK)
         lcd.text("YOUR SCORE: %d" % score, 57, 139, CHICKEN)
         lcd.fill_rect(48, 161, 12, 12, color(45, 205, 80))
         lcd.text("NEW RUN", 70, 163, INK)
@@ -362,15 +369,21 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
 
 def animate_water(lcd, world, col, row, score, best, facing, phase, carried_off=False):
     """Short splash sequence, with an edge struggle before falling off."""
-    if carried_off:
-        for _ in range(2):
-            draw_world(lcd, world, col, row, score, best, False, facing,
-                       dead=False, phase=phase)
-            time.sleep_ms(80)
     for frame in range(1, 5):
         draw_world(lcd, world, col, row, score, best, False, facing,
-                   dead=True, phase=phase, water_frame=frame)
+                   dead=True, phase=phase, water_frame=frame,
+                   death_kind="offscreen" if carried_off else "water")
         time.sleep_ms(90)
+
+def animate_log_carry(lcd, world, old_col, row, score, best, facing,
+                      old_phase, new_phase):
+    """Four visual substeps; logical collision remains grid-based."""
+    direction = -1 if (row // 24) & 1 else 1
+    for step in range(1, 5):
+        draw_world(lcd, world, old_col, row, score, best, False, facing,
+                   phase=old_phase if step < 3 else new_phase,
+                   chicken_dx=direction * step * 5)
+        time.sleep_ms(25)
 
 def animate_crash(lcd, world, col, row, score, best, facing, phase):
     """Brief non-blocking-to-firmware animation with a bounded duration."""
@@ -426,7 +439,10 @@ def run():
                             dead = True
                             death_kind = "offscreen"
                         else:
+                            old_col = col
                             col = carried
+                            animate_log_carry(lcd, world, old_col, row, score,
+                                              best, facing, phase, next_phase)
                     else:
                         dead = True
                         death_kind = "water"
@@ -528,7 +544,8 @@ def run():
                                 animate_crash(lcd, world, col, row, score, best, facing, phase)
                             crash_animated = True
                         else:
-                            draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead, phase=phase)
+                            draw_world(lcd, world, col, row, score, best, paused, facing, dead=dead, phase=phase,
+                                   death_kind=death_kind)
                     else:
                         debug("blocked %s row=%d col=%d" % (key, row, col))
                     break
