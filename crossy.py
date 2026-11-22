@@ -43,6 +43,8 @@ WATER = color(35, 105, 175)
 SPLASH = color(215, 240, 255)
 LOG = color(130, 83, 42)
 LOG_GRAIN = color(165, 111, 62)
+LOG_DARK = color(88, 53, 30)
+LOG_HIGHLIGHT = color(185, 132, 76)
 LILY = color(45, 165, 70)
 LILY_VEIN = color(110, 205, 95)
 LILY_DARK = color(23, 100, 45)
@@ -453,6 +455,29 @@ def draw_flower(lcd, x, y, variant):
     lcd.fill_rect(x + 9, y + 5, 2, 6, petals)
     lcd.fill_rect(x + 9, y + 8, 2, 2, FLOWER)
 
+def draw_log_runs(lcd, mask, sy):
+    """Draw continuous visible log spans; screen-edge wraps are separate spans."""
+    col = 0
+    while col < GRID_SIZE:
+        if not (mask & (1 << col)):
+            col += 1
+            continue
+        first = col
+        while col + 1 < GRID_SIZE and mask & (1 << (col + 1)):
+            col += 1
+        last = col
+        left = first * STEP
+        width = (last - first + 1) * STEP
+        # One unbroken bark silhouette across all occupied cells.
+        lcd.fill_rect(left, sy + 5, width, 12, LOG_DARK)
+        lcd.fill_rect(left + 1, sy + 6, width - 2, 10, LOG)
+        lcd.fill_rect(left + 3, sy + 7, width - 6, 2, LOG_HIGHLIGHT)
+        lcd.fill_rect(left + 4, sy + 12, width - 8, 1, LOG_GRAIN)
+        # End-grain rings only at visible ends, not every grid cell.
+        lcd.fill_rect(left + 2, sy + 9, 2, 4, LOG_GRAIN)
+        lcd.fill_rect(left + width - 4, sy + 9, 2, 4, LOG_GRAIN)
+        col += 1
+
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0):
     lcd.fill(GRASS_ALT)
     for screen_row in range(WINDOW):
@@ -468,10 +493,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                 if pads & (1 << px):
                     draw_lily(lcd, px * STEP, sy)
             logs = generated_mask(world.seed, absolute, phase) if kind == "logs" else 0
-            for lx in range(GRID_SIZE):
-                if logs & (1 << lx):
-                    lcd.fill_rect(lx * STEP + 1, sy + 5, 18, 11, LOG)
-                    lcd.fill_rect(lx * STEP + 4, sy + 8, 11, 2, LOG_GRAIN)
+            draw_log_runs(lcd, logs, sy)
             continue
         if kind == "road":
             lcd.fill_rect(0, sy, 240, STEP, ROAD)

@@ -48,7 +48,7 @@ def section(seed, row):
     if offset >= width:
         return ("grass", 0, 0)
     # Favor roads without eliminating log and lily sections.
-    kind = ("road", "road", "road", "road", "logs", "lilies")[value % 6]
+    kind = ("road", "road", "road", "road", "road", "logs", "lilies")[value % 7]
     return (kind, offset, width)
 
 def lily_route_col(seed, row):
