@@ -43,6 +43,8 @@ LOG = color(130, 83, 42)
 LOG_GRAIN = color(165, 111, 62)
 LILY = color(45, 165, 70)
 LILY_VEIN = color(110, 205, 95)
+LILY_DARK = color(23, 100, 45)
+LILY_LIGHT = color(85, 195, 95)
 WATER_RIPPLE = color(65, 135, 195)
 TREE_HIGHLIGHT = color(28, 90, 38)
 SHOULDER = color(95, 105, 75)
@@ -357,6 +359,24 @@ def draw_splash(lcd, x, y, frame):
         lcd.fill_rect(left, top, 2, bottom - top, SPLASH)
         lcd.fill_rect(right - 2, top, 2, bottom - top, SPLASH)
 
+def draw_lily(lcd, x, y):
+    """Rounded 20x20 lily leaf with a notch and veins, no heap allocations."""
+    # Staggered horizontal bands approximate a circular leaf silhouette.
+    lcd.fill_rect(x + 6, y + 1, 8, 18, LILY_DARK)
+    lcd.fill_rect(x + 3, y + 4, 14, 12, LILY_DARK)
+    lcd.fill_rect(x + 1, y + 7, 18, 6, LILY_DARK)
+    lcd.fill_rect(x + 6, y + 3, 8, 14, LILY)
+    lcd.fill_rect(x + 4, y + 6, 12, 8, LILY)
+    lcd.fill_rect(x + 7, y + 5, 5, 4, LILY_LIGHT)
+    # Open V-shaped notch at the top edge.
+    lcd.fill_rect(x + 9, y + 1, 2, 4, WATER)
+    lcd.fill_rect(x + 8, y + 1, 1, 2, WATER)
+    lcd.fill_rect(x + 11, y + 1, 1, 2, WATER)
+    # Central vein and two small branches.
+    lcd.fill_rect(x + 9, y + 7, 2, 9, LILY_VEIN)
+    lcd.fill_rect(x + 6, y + 10, 3, 1, LILY_VEIN)
+    lcd.fill_rect(x + 11, y + 12, 3, 1, LILY_VEIN)
+
 def draw_car(lcd, x, y, row=6, phase=0):
     """Compact vehicle silhouette with windshield and wheels."""
     body = car_color(row, x // STEP, phase)
@@ -388,8 +408,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             pads = generated_mask(world.seed, absolute, phase) if kind == "lilies" else 0
             for px in range(GRID_SIZE):
                 if pads & (1 << px):
-                    lcd.fill_rect(px * STEP + 3, sy + 3, 14, 14, LILY)
-                    lcd.fill_rect(px * STEP + 8, sy + 4, 2, 9, LILY_VEIN)
+                    draw_lily(lcd, px * STEP, sy)
             logs = generated_mask(world.seed, absolute, phase) if kind == "logs" else 0
             for lx in range(GRID_SIZE):
                 if logs & (1 << lx):

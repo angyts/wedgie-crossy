@@ -1,0 +1,1 @@
+The lily pad now uses a rounded 20x20 silhouette with dark outline, lighter center, notch and veins. Geometry is bounded within one cell; physics and collision masks are unchanged. Procedural mode remains disabled. Host and device rendering performance are not yet verified.
