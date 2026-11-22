@@ -630,7 +630,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     elif not dead:
         draw_chicken(lcd, MIN_X + col * STEP + chicken_dx, MIN_Y + screen_y, facing)
     # Minimal HUD. A tenth-row milestone briefly changes score color.
-    if dirty_rows is None or world.first in dirty_rows:
+    if dirty_rows is None or (world.first + WINDOW - 1) in dirty_rows:
         lcd.fill_rect(0, 0, 240, 20, BG)
         score_color = CHICKEN if milestone(score) else INK
         lcd.text("SCORE %d" % score, 4, 5, score_color)
