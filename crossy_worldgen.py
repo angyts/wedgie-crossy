@@ -129,8 +129,8 @@ def log_position(seed, row, phase):
     return (phase // log_period(seed, row)) * log_direction(seed, row)
 
 def log_length(seed, row):
-    """Deterministic 3-5 tile logs, varying by lane."""
-    return 3 + ((log_lane_value(seed, row) >> 16) % 3)
+    """Deterministic 2-3 tile logs, varying by lane."""
+    return 2 + ((log_lane_value(seed, row) >> 16) % 2)
 
 def log_mask(seed, row, phase):
     kind, lane, width = section(seed, row)

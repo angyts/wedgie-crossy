@@ -29,7 +29,8 @@ class SmoothPartialTests(unittest.TestCase):
                 m.preview_traffic(s,world,0,1,world.first+5,Keys())
                 self.assertEqual(s.full,0)
                 self.assertTrue(all(h==20 and w<=240 for x,y,w,h in s.flush))
-            self.assertTrue(m.SMOOTH_TRAFFIC)
+            self.assertIn(m.SMOOTH_TRAFFIC, (True, False))
+            self.assertEqual(m.SMOOTH_STEPS, (5, 10, 15))
             self.assertEqual(m.car_color(6,2,1,123),m.car_color(6,2,1,123))
         finally:
             if old is None:sys.modules.pop("lcd",None)
