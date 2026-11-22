@@ -4,6 +4,7 @@
 
 pub mod world;
 pub mod game;
+pub mod render;
 
 pub const WIDTH: i16 = 12;
 pub const WINDOW_ROWS: usize = 16;
