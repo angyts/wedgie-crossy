@@ -1,4 +1,4 @@
-"""Three visually distinct vehicle silhouettes remain inside a tile."""
+"""Four visually distinct vehicle silhouettes remain inside a tile."""
 import importlib.util
 import sys
 import types
@@ -26,7 +26,7 @@ class VehicleSpritesTests(unittest.TestCase):
                                     for x,y,w,h,c in s.rects))
                 styles[style]=[(x,y,w,h) for x,y,w,h,c in s.rects]
             self.assertEqual(set(styles),{0,1,2,3})
-            self.assertEqual(len({str(v) for v in styles.values()}),3)
+            self.assertEqual(len({str(v) for v in styles.values()}),4)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old
