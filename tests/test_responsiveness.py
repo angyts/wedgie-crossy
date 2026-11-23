@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 class ResponsivenessTests(unittest.TestCase):
     def test_pre_render_poll_and_short_idle(self):
-        src=(ROOT/"crossy.py").read_text()
+        src=(ROOT/"crossy_runtime.py").read_text()
         self.assertIn("early_inputs = keys.pressed()",src)
         self.assertIn("time.sleep_ms(10)",src)
         self.assertIn("traffic_interval(score) * FRAME_MS",src)
