@@ -31,7 +31,7 @@ class PartialFlushTests(unittest.TestCase):
             screen=Screen()
             m.draw_world(screen,world,5,0,0,dirty_rows=[top])
             self.assertEqual(screen.full,0)
-            self.assertEqual(screen.rects,[(0,0,240,20),(0,0,240,20)])
+            self.assertEqual(screen.rects,[(0,0,240,20)])
             screen=Screen()
             m.draw_world(screen,world,5,0,0)
             self.assertEqual(screen.full,1)
