@@ -46,5 +46,42 @@ class JoinedRouteTests(unittest.TestCase):
         self.assertIsNone(v.replay_joined_route(seed, 0, (), entry_col=-1))
 
 
+    def test_optimized_search_matches_reference_reachability(self):
+        # Independent small state-frontier reference; no predecessor cache.
+        for seed in (0, 1, 0x3F564588, 0x0676964C):
+            for block in (0, 1, 4):
+                for phase in (0, 1, 3):
+                    start = 8 + block * w.BLOCK - 1
+                    goal = start + 1 + 2 * w.BLOCK
+                    states = {(start, w.CENTER)}
+                    expected = False
+                    for tick in range(36):
+                        next_states = set()
+                        for row, col in states:
+                            for move in v.MOVES:
+                                result = v.advance(seed, row, col, phase + tick, move)
+                                if result is None:
+                                    continue
+                                nr, nc = result
+                                if nr >= goal:
+                                    expected = True
+                                    break
+                                if start <= nr < goal:
+                                    next_states.add((nr, nc))
+                            if expected:
+                                break
+                        if expected or not next_states:
+                            break
+                        states = next_states
+                    witness = v.joined_route(seed, block, 2, phase, 36)
+                    self.assertEqual(witness is not None, expected)
+                    if witness is not None:
+                        moves, end_phase, end_col = witness
+                        self.assertEqual(v.replay_joined_route(
+                            seed, block, moves, start_phase=phase),
+                            (goal, end_col))
+                        self.assertEqual(end_phase, phase + len(moves))
+
+
 if __name__ == "__main__":
     unittest.main()
