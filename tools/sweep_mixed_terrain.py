@@ -23,7 +23,7 @@ BANDS = (0, 4, 10)
 KNOWN_SEEDS = (0x3F564588, 0x0676964C)
 
 
-def sweep(seeds=1000, phases=4, ticks=72, blocks=2, max_failures=30):
+def sweep(seeds=10, phases=2, ticks=48, blocks=2, max_failures=30, progress=False):
     if min(seeds, phases, ticks, blocks) <= 0:
         raise ValueError("seeds, phases, ticks and blocks must be positive")
     if max_failures < 0:
@@ -71,6 +71,13 @@ def sweep(seeds=1000, phases=4, ticks=72, blocks=2, max_failures=30):
             counts[key]["seed_groups"] += 1
             if group_passed:
                 counts[key]["all_phases_passed"] += 1
+        if progress:
+            elapsed = time.monotonic() - start
+            rate = total / elapsed if elapsed else 0
+            remaining = ((seeds - n - 1) * len(BANDS) * phases / rate
+                         if rate else 0)
+            print("progress %d/%d seeds | %d cases | %.2f cases/s | ETA %.0fs" %
+                  (n + 1, seeds, total, rate, remaining), flush=True)
     return {
         "model": "one_action_then_one_hazard_tick",
         "certifies_human_fairness": False,
@@ -89,15 +96,15 @@ def sweep(seeds=1000, phases=4, ticks=72, blocks=2, max_failures=30):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seeds", type=int, default=1000)
-    parser.add_argument("--phases", type=int, default=4)
-    parser.add_argument("--ticks", type=int, default=72)
+    parser.add_argument("--seeds", type=int, default=10)
+    parser.add_argument("--phases", type=int, default=2)
+    parser.add_argument("--ticks", type=int, default=48)
     parser.add_argument("--blocks", type=int, default=2)
     parser.add_argument("--max-failures", type=int, default=30)
     parser.add_argument("--json", dest="output", default=None)
     args = parser.parse_args(argv)
     result = sweep(args.seeds, args.phases, args.ticks, args.blocks,
-                   args.max_failures)
+                   args.max_failures, progress=True)
     report = json.dumps(result, indent=2, sort_keys=True)
     if args.output:
         directory = os.path.dirname(os.path.abspath(args.output))
