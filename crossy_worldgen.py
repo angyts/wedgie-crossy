@@ -24,7 +24,7 @@ def mix32(value):
     value = (value * 0x846ca68b) & 0xffffffff
     return (value ^ (value >> 16)) & 0xffffffff
 
-def section(seed, row):
+def _base_section(seed, row):
     """Return (kind, local_lane, width), or grass.
 
     Blocks contain a hazard section followed by a grass buffer. A single
@@ -193,7 +193,7 @@ def mixed_section_candidate(seed, row):
     This function describes candidate layouts for offline route validation;
     it does not claim that a crossing is time-feasible.
     """
-    kind, lane, width = section(seed, row)
+    kind, lane, width = _base_section(seed, row)
     if kind == "grass":
         return "grass"
     if width < 4 or kind != "road":
@@ -205,3 +205,15 @@ def mixed_section_candidate(seed, row):
     if lane == 0 or lane == width - 1:
         return "road"
     return "logs" if ((lane + (variant >> 8)) & 1) else "road"
+
+# Experimental switch: OFF on every device by default.
+# Only change for a controlled hardware trial after validator parity checks.
+MIXED_TERRAIN = False
+
+
+def section(seed, row):
+    """Single authoritative terrain kind for masks, collision and drawing."""
+    kind, lane, width = _base_section(seed, row)
+    if MIXED_TERRAIN and kind == "road":
+        kind = mixed_section_candidate(seed, row)
+    return kind, lane, width
