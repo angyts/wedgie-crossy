@@ -25,7 +25,7 @@ class VehicleSpritesTests(unittest.TestCase):
                 self.assertTrue(all(100<=x and 100<=y and x+w<=120 and y+h<=120
                                     for x,y,w,h,c in s.rects))
                 styles[style]=[(x,y,w,h) for x,y,w,h,c in s.rects]
-            self.assertEqual(set(styles),{0,1,2})
+            self.assertEqual(set(styles),{0,1,2,3})
             self.assertEqual(len({str(v) for v in styles.values()}),3)
         finally:
             if old is None:sys.modules.pop("lcd",None)
