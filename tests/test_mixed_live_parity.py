@@ -10,8 +10,8 @@ import crossy_mixed_validator as v
 
 
 class MixedLiveParityTests(unittest.TestCase):
-    def test_default_is_disabled(self):
-        self.assertFalse(w.MIXED_TERRAIN)
+    def test_trial_flag_is_enabled(self):
+        self.assertTrue(w.MIXED_TERRAIN)
 
     def test_default_matches_base_sections(self):
         previous = w.MIXED_TERRAIN
