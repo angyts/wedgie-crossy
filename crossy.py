@@ -380,11 +380,11 @@ def car_color(row, col, phase=0, seed=None):
     return (CAR, CAR_BLUE, CAR_YELLOW)[(row // 12 + origin // 3) % 3]
 
 def car_style(row):
-    """Deterministic visual variant per road band."""
-    return (row // 12) % 3
+    """Four deterministic vehicle silhouettes; no per-frame random state."""
+    return (row // 12) % 4
 
 def car_length(row):
-    return 18 if car_style(row) == 2 else 16
+    return 18 if car_style(row) in (2, 3) else 16
 
 def next_traffic_phase(phase):
     """Never recompute absolute phase from score-dependent intervals."""
@@ -446,19 +446,27 @@ def draw_car(lcd, x, y, row=6, phase=0, seed=None, identity_col=None):
         lcd.fill_rect(x + 6, y + 4, 9, 6, body)
         lcd.fill_rect(x + 7, y + 5, 6, 3, CAR_WINDOW)
         lcd.fill_rect(x + 2, y + 10, 3, 2, CAR_WINDOW)
-    else:
+    elif style == 2:
         # Taller delivery van, with a boxy roof and side window.
         lcd.fill_rect(x + left, y + 4, length, 11, body)
         lcd.fill_rect(x + 4, y + 5, 6, 5, CAR_WINDOW)
         lcd.fill_rect(x + 12, y + 7, 3, 2, CAR_WINDOW)
+    else:
+        # Flat-roof mini truck. Still fits the original 20x20 hit tile.
+        lcd.fill_rect(x + left, y + 7, length, 9, body)
+        lcd.fill_rect(x + 2, y + 4, 10, 9, body)
+        lcd.fill_rect(x + 4, y + 5, 6, 5, CAR_WINDOW)
+        lcd.fill_rect(x + 14, y + 8, 3, 3, CAR_WINDOW)
     # Small 1px highlights add shape without changing sprite bounds,
     # collision masks, or the number of LCD transfers.
     if style == 0:
         lcd.fill_rect(x + 3, y + 11, 2, 2, CAR_WINDOW)
     elif style == 1:
         lcd.fill_rect(x + 15, y + 10, 2, 2, CAR_WINDOW)
-    else:
+    elif style == 2:
         lcd.fill_rect(x + 14, y + 5, 2, 2, CAR_WINDOW)
+    else:
+        lcd.fill_rect(x + 12, y + 12, 3, 1, CAR_WINDOW)
     lcd.fill_rect(x + 4, y + 15, 4, 3, CAR_WHEEL)
     lcd.fill_rect(x + 12, y + 15, 4, 3, CAR_WHEEL)
 
