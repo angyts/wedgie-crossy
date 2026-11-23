@@ -17,7 +17,7 @@ class SmoothPartialTests(unittest.TestCase):
             class Screen:
                 def __init__(self):self.rects=[];self.flush=[];self.full=0
                 def fill_rect(self,x,y,w,h,c):
-                    self.assertTrue(0<=x and 0<=y and x+w<=240 and y+h<=240 and w>0 and h>0)
+                    assert 0 <= x and 0 <= y and x + w <= 240 and y + h <= 240 and w > 0 and h > 0
                     self.rects.append((x,y,w,h,c))
                 def show_rect(self,x,y,w,h):self.flush.append((x,y,w,h))
                 def show(self):self.full+=1
