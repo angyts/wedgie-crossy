@@ -31,7 +31,7 @@ class LogSupportRegression(unittest.TestCase):
                             break
                 if found:break
             self.assertTrue(found)
-            source=(ROOT/"crossy.py").read_text()
+            source=(ROOT/"crossy_runtime.py").read_text()
             self.assertIn("elif hazard_at(seed, row, col, phase):",source)
         finally:
             if old is None:sys.modules.pop("lcd",None)
