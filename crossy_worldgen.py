@@ -184,3 +184,24 @@ def seed_from_ticks(ticks):
     Timing-based variability is not cryptographic randomness.
     """
     return mix32(ticks ^ 0xa5a5c3c3)
+
+def mixed_section_candidate(seed, row):
+    """Experimental mixed-section proposal; NOT used by live section().
+
+    A 12-row block retains the existing grass buffer. Only interior hazard
+    lanes may alternate road/logs, and the first/last hazard lanes stay road.
+    This function describes candidate layouts for offline route validation;
+    it does not claim that a crossing is time-feasible.
+    """
+    kind, lane, width = section(seed, row)
+    if kind == "grass":
+        return "grass"
+    if width < 4 or kind != "road":
+        return kind
+    block = (row - 8) // BLOCK
+    variant = mix32(seed ^ (block * 0x6d2b79f5))
+    if (variant & 3) != 0:
+        return kind
+    if lane == 0 or lane == width - 1:
+        return "road"
+    return "logs" if ((lane + (variant >> 8)) & 1) else "road"
