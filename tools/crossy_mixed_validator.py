@@ -108,14 +108,12 @@ def validate(seed, block, phases=12, max_ticks=120):
 
 def joined_route(seed, first_block, block_count=2, start_phase=0,
                  max_ticks=240, entry_columns=None, mixed=True):
-    """Find a single continuous route through adjacent complete blocks.
+    """Find a continuous route with compact predecessor links.
 
-    Unlike independent per-block witnesses, this search carries the actual
-    column and phase through every join. It never resets to CENTER at a
-    boundary. Returns (path, ending_phase, ending_column), or None.
-
-    A witness proves only reachability under advance()'s simplified tick
-    model, not reaction-time fairness or real-device input latency.
+    Each search layer holds only reachable (row, col) states. Parents store
+    (previous state, action) rather than copying full paths on every edge.
+    Cached lane masks avoid repeating procedural calculations for every move.
+    This is still a simplified one-input-per-tick feasibility model.
     """
     if block_count < 1 or max_ticks < 1:
         raise ValueError("block_count and max_ticks must be positive")
@@ -124,26 +122,66 @@ def joined_route(seed, first_block, block_count=2, start_phase=0,
     goal = first + block_count * w.BLOCK
     if entry_columns is None:
         entry_columns = (w.CENTER,)
-    states = {}
+
+    kinds = {}
+    masks = {}
+
+    def kind_at(row):
+        if row not in kinds:
+            kinds[row] = lane_kind(seed, row, mixed)
+        return kinds[row]
+
+    def mask_at(row, phase):
+        key = (row, phase)
+        if key not in masks:
+            masks[key] = occupancy(seed, row, phase, kind_at(row))
+        return masks[key]
+
+    def safe_at(row, col, phase):
+        if row < start or not 0 <= col < w.WIDTH:
+            return False
+        occupied = bool(mask_at(row, phase) & (1 << col))
+        return occupied if kind_at(row) in ("logs", "lilies") else not occupied
+
+    states = set()
     for col in entry_columns:
-        if safe(seed, start, col, start_phase, mixed):
-            states[(start, col)] = ()
+        if safe_at(start, col, start_phase):
+            states.add((start, col))
     if not states:
         return None
+
+    # Layer zero has no predecessors. Subsequent maps contain one parent
+    # per reachable state, retaining the first deterministic BFS witness.
+    parents = []
     for tick in range(max_ticks):
         phase = start_phase + tick
-        next_states = {}
-        for (row, col), path in states.items():
+        next_states = set()
+        links = {}
+        for row, col in sorted(states):
             for move in MOVES:
-                result = advance(seed, row, col, phase, move, mixed)
-                if result is None:
+                dc, dr = move
+                nr, nc = row + dr, col + dc
+                if not safe_at(nr, nc, phase):
                     continue
-                nr, nc = result
-                candidate = path + (move,)
+                kind = kind_at(nr)
+                if kind == "logs" and mask_at(nr, phase) != mask_at(nr, phase + 1):
+                    nc += w.log_direction(seed, nr)
+                if not safe_at(nr, nc, phase + 1):
+                    continue
+                state = (nr, nc)
+                if state in next_states:
+                    continue
+                next_states.add(state)
+                links[state] = ((row, col), move)
                 if nr >= goal:
-                    return candidate, phase + 1, nc
-                if start <= nr < goal and (nr, nc) not in next_states:
-                    next_states[(nr, nc)] = candidate
+                    path = [move]
+                    previous = (row, col)
+                    for earlier in reversed(parents):
+                        previous, earlier_move = earlier[previous]
+                        path.append(earlier_move)
+                    path.reverse()
+                    return tuple(path), phase + 1, nc
+        parents.append(links)
         states = next_states
         if not states:
             break
