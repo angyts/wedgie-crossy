@@ -206,9 +206,9 @@ def mixed_section_candidate(seed, row):
         return "road"
     return "logs" if ((lane + (variant >> 8)) & 1) else "road"
 
-# Experimental switch: OFF on every device by default.
-# Only change for a controlled hardware trial after validator parity checks.
-MIXED_TERRAIN = False
+# Controlled physical-hardware trial; revert to False for baseline terrain.
+# Offline route witnesses do not establish human reaction-time fairness.
+MIXED_TERRAIN = True
 
 
 def section(seed, row):
