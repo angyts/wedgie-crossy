@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 class NoPreviewTests(unittest.TestCase):
     def test_single_traffic_render(self):
-        source=(ROOT/"crossy.py").read_text()
+        source=(ROOT/"crossy_runtime.py").read_text()
         tree=ast.parse(source)
         self.assertNotIn("def draw_moving_preview(",source)
         self.assertNotIn("draw_moving_preview(",source)
