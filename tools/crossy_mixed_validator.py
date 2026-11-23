@@ -104,3 +104,78 @@ def validate(seed, block, phases=12, max_ticks=120):
         if route(seed, block, phase, max_ticks) is not None:
             successes += 1
     return successes, phases
+
+
+def joined_route(seed, first_block, block_count=2, start_phase=0,
+                 max_ticks=240, entry_columns=None, mixed=True):
+    """Find a single continuous route through adjacent complete blocks.
+
+    Unlike independent per-block witnesses, this search carries the actual
+    column and phase through every join. It never resets to CENTER at a
+    boundary. Returns (path, ending_phase, ending_column), or None.
+
+    A witness proves only reachability under advance()'s simplified tick
+    model, not reaction-time fairness or real-device input latency.
+    """
+    if block_count < 1 or max_ticks < 1:
+        raise ValueError("block_count and max_ticks must be positive")
+    first = 8 + first_block * w.BLOCK
+    start = first - 1
+    goal = first + block_count * w.BLOCK
+    if entry_columns is None:
+        entry_columns = (w.CENTER,)
+    states = {}
+    for col in entry_columns:
+        if safe(seed, start, col, start_phase, mixed):
+            states[(start, col)] = ()
+    if not states:
+        return None
+    for tick in range(max_ticks):
+        phase = start_phase + tick
+        next_states = {}
+        for (row, col), path in states.items():
+            for move in MOVES:
+                result = advance(seed, row, col, phase, move, mixed)
+                if result is None:
+                    continue
+                nr, nc = result
+                candidate = path + (move,)
+                if nr >= goal:
+                    return candidate, phase + 1, nc
+                if start <= nr < goal and (nr, nc) not in next_states:
+                    next_states[(nr, nc)] = candidate
+        states = next_states
+        if not states:
+            break
+    return None
+
+
+def validate_joins(seed, first_block, block_count=2, phases=12,
+                   max_ticks=240, entry_columns=None):
+    """Count starting phases with a continuous multi-block witness.
+
+    Reports an aggregate witness count, not a certified playable family.
+    """
+    if phases < 1:
+        raise ValueError("phases must be positive")
+    successes = 0
+    for phase in range(phases):
+        if joined_route(seed, first_block, block_count, phase,
+                        max_ticks, entry_columns) is not None:
+            successes += 1
+    return successes, phases
+
+
+def replay_joined_route(seed, first_block, moves, start_phase=0,
+                        entry_col=w.CENTER, mixed=True):
+    """Replay a witness from one entry state for deterministic verification."""
+    row = 8 + first_block * w.BLOCK - 1
+    col = entry_col
+    if not safe(seed, row, col, start_phase, mixed):
+        return None
+    for tick, move in enumerate(moves):
+        result = advance(seed, row, col, start_phase + tick, move, mixed)
+        if result is None:
+            return None
+        row, col = result
+    return row, col
