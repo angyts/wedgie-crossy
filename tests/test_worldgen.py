@@ -13,9 +13,13 @@ class WorldGenTests(unittest.TestCase):
         for seed in range(1000):
             for row in range(16,160):
                 kind,lane,width=m.section(seed,row)
-                self.assertIn(kind,("grass","road","logs","lilies"))
+                self.assertIn(kind,("grass","road","logs","lilies","rail"))
                 self.assertTrue(0<=width<=8)
-                if kind!="grass":
+                if kind=="rail":
+                    self.assertEqual((lane,width),(0,1))
+                    self.assertEqual(m.section(seed,row-1)[0],"grass")
+                    self.assertEqual(m.section(seed,row+1)[0],"grass")
+                elif kind!="grass":
                     start=row-lane
                     low,high=(1,2) if start<30 else (2,5) if start<70 else (5,7) if start<120 else (6,8)
                     self.assertTrue(low<=width<=high)
@@ -48,6 +52,7 @@ class WorldGenTests(unittest.TestCase):
             for block in range(20):
                 base=8+block*m.BLOCK
                 self.assertTrue(all(m.section(seed,base+i)[0]=="grass"
-                                    for i in range(8,m.BLOCK)))
+                                    for i in (8,9,11)))
+                self.assertIn(m.section(seed,base+10)[0],("grass","rail"))
 if __name__=="__main__":
     unittest.main()
