@@ -794,8 +794,8 @@ def draw_rail_signals(lcd, sy, stage, phase):
         elif stage == 2 or phase & 1:
             lcd.fill_rect(x+3, sy+4, 10, 12, red)
         else:
-            # Dim red remains visible between bright warning flashes.
-            lcd.fill_rect(x+3, sy+4, 10, 12, CAR)
+            # True off frame: no red pixels remain in the signal.
+            lcd.fill_rect(x+3, sy+4, 10, 12, dark)
 
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None, previous_phase=None, road_step=0):
     global _render_frames, _render_total_ms, _render_max_ms
