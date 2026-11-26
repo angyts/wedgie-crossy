@@ -18,6 +18,7 @@ class DebugWheelTests(unittest.TestCase):
                 def __init__(self):self.rects=[];self.texts=[]
                 def fill_rect(self,x,y,w,h,c):self.rects.append((x,y,w,h))
                 def text(self,s,x,y,c):self.texts.append(s)
+            m.DEBUG=True
             screen=Screen()
             m.draw_debug_overlay(screen,0x12345678,4)
             self.assertTrue(any("12345678" in s for s in screen.texts))
