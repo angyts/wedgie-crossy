@@ -547,6 +547,52 @@ def draw_debug_overlay(lcd, seed, phase):
     lcd.text("S:%08X F:%d M:%dK P:%d" %
              (seed & 0xffffffff, _debug_fps, free_kb, phase % 100), 1, 22, INK)
 
+def draw_special_death(lcd, kind, frame, direction=1):
+    """Clipped portrait animation; never paint over score or restart text."""
+    # Reuse the lane clip for vertical bounds; explicitly clip horizontal
+    # coordinates to the portrait, not merely the physical screen.
+    def rect(x, y, w, h, ink):
+        left, right = max(72, x), min(168, x+w)
+        top, bottom = max(44, y), min(109, y+h)
+        if left < right and top < bottom:
+            lcd.fill_rect(left, top, right-left, bottom-top, ink)
+    frame = max(1, min(5, frame))
+    if kind == "rail":
+        rect(72, 92, 96, 17, ROAD_EDGE)
+        for x in range(72, 168, 12):
+            rect(x, 93, 5, 16, TREE_TRUNK)
+        rect(72, 96, 96, 3, INK)
+        rect(72, 105, 96, 3, INK)
+        h = max(3, 24-frame*5)
+        rect(104-frame*2, 96-h, 32+frame*4, h, CHICKEN)
+        rect(132+frame*2, 94, 7, 3, BEAK)
+        front = 92+frame*16
+        for x in (front-100, front-50):
+            rect(x, 62, 46, 29, CAR_BLUE)
+            rect(x+5, 67, 14, 10, CAR_WINDOW)
+            rect(x+25, 67, 14, 10, CAR_WINDOW)
+            for wheel in (x+5, x+29):
+                rect(wheel, 87, 12, 12, CAR_WHEEL)
+        rect(front, 62, 42, 29, CAR)
+        rect(front+4, 51, 23, 15, CAR)
+        rect(front+8, 55, 15, 9, CAR_WINDOW)
+        rect(front+30, 68, 12, 5, CAR_YELLOW)
+        for wheel in (front+4, front+26):
+            rect(wheel, 87, 12, 12, CAR_WHEEL)
+    else:
+        rect(72, 44, 96, 65, WATER)
+        for x in range(76, 168, 20):
+            rect(x, 56, 10, 2, WATER_RIPPLE)
+            rect(x-5, 99, 12, 2, WATER_RIPPLE)
+        center = 120 + direction*(frame-1)*18
+        rect(center-28, 83, 56, 14, LOG_DARK)
+        rect(center-26, 84, 52, 11, LOG)
+        rect(center-23, 85, 46, 2, LOG_HIGHLIGHT)
+        rect(center-10, 66, 20, 17, CHICKEN)
+        rect(center-5, 60, 13, 12, CHICKEN)
+        rect(center+direction*9-3, 68, 6, 4, BEAK)
+        rect(center+direction*4, 63, 2, 2, EYE)
+
 def draw_dead_chicken(lcd, kind, frame):
     """Death animation contained in the y=44..111 scene above the popup."""
     x, y = 120, 64
@@ -910,8 +956,12 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     if dead:
         # The portrait is a separate scene ABOVE the popup, never inside it.
         lcd.fill_rect(72, 44, 96, 65, BG)
-        draw_dead_chicken(lcd, "water" if death_kind in ("water", "offscreen") else "road",
-                          crash_frame or water_frame or 5)
+        if death_kind in ("rail", "offscreen"):
+            direction = worldgen.log_direction(world.seed, row) if death_kind == "offscreen" else 1
+            draw_special_death(lcd, death_kind, crash_frame or water_frame or 5, direction)
+        else:
+            draw_dead_chicken(lcd, "water" if death_kind == "water" else "road",
+                              crash_frame or water_frame or 5)
         lcd.fill_rect(8, 112, 224, 103, BG)
         if death_kind == "water":
             lcd.text("ALWAYS WATCH", 56, 120, INK)
@@ -993,7 +1043,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
 
 def animate_water(lcd, world, col, row, score, best, facing, phase, carried_off=False):
     """Short splash sequence, with an edge struggle before falling off."""
-    for frame in range(1, 5):
+    for frame in range(1, 6 if carried_off else 5):
         draw_world(lcd, world, col, row, score, best, False, facing,
                    dead=True, phase=phase, water_frame=frame,
                    death_kind="offscreen" if carried_off else "water")
@@ -1032,6 +1082,8 @@ def run():
 
 
 def animate_train_crash(lcd, world, col, row, score, best, facing, phase):
-    """Train-specific result screen, without blocking extra animation frames."""
-    draw_world(lcd, world, col, row, score, best, False, facing,
-               dead=True, phase=phase, death_kind="rail")
+    """Five bounded train portrait frames, then leave the restart screen."""
+    for frame in range(1, 6):
+        draw_world(lcd, world, col, row, score, best, False, facing,
+                   dead=True, phase=phase, death_kind="rail", crash_frame=frame)
+        time.sleep_ms(90)
