@@ -1,14 +1,14 @@
-"""Mixed-terrain candidates are deterministic and disabled in live gameplay."""
+"""Mixed-terrain candidates preserve base section boundaries."""
 import unittest
 import crossy_worldgen as w
 
 
 class MixedCandidateTests(unittest.TestCase):
-    def test_candidates_preserve_live_generation(self):
+    def test_candidates_preserve_base_boundaries(self):
         found = 0
         for seed in range(100):
             for row in range(8, 150):
-                original = w.section(seed, row)[0]
+                original = w._base_section(seed, row)[0]
                 candidate = w.mixed_section_candidate(seed, row)
                 self.assertIn(candidate, ("grass", "road", "logs", "lilies"))
                 if original == "grass":
@@ -17,7 +17,7 @@ class MixedCandidateTests(unittest.TestCase):
                     found += 1
                     self.assertEqual(original, "road")
                     self.assertEqual(candidate, "logs")
-                    kind, lane, width = w.section(seed, row)
+                    kind, lane, width = w._base_section(seed, row)
                     self.assertGreaterEqual(width, 4)
                     self.assertGreater(lane, 0)
                     self.assertLess(lane, width - 1)
@@ -28,7 +28,7 @@ class MixedCandidateTests(unittest.TestCase):
             for row in range(8, 256):
                 self.assertEqual(w.mixed_section_candidate(seed, row),
                                  w.mixed_section_candidate(seed, row))
-                kind, lane, width = w.section(seed, row)
+                kind, lane, width = w._base_section(seed, row)
                 if kind == "road" and lane in (0, width - 1):
                     self.assertEqual(w.mixed_section_candidate(seed, row), "road")
 
