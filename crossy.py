@@ -331,6 +331,7 @@ def row_mask(seed, row):
 class World:
     def __init__(self, seed):
         self.seed = seed
+        self.pressure_warning = False
         self.rows = [0] * WINDOW
         self.first = 0
         self.last = WINDOW - 1
@@ -557,7 +558,16 @@ def draw_special_death(lcd, kind, frame, direction=1):
         if left < right and top < bottom:
             lcd.fill_rect(left, top, right-left, bottom-top, ink)
     frame = max(1, min(5, frame))
-    if kind == "rail":
+    if kind == "eagle":
+        cy = 46 + min(frame, 3)*12 - max(0, frame-3)*15
+        rect(91, cy, 58, 9, TREE_TRUNK)
+        rect(78, cy-6, 25, 9, LOG_DARK)
+        rect(137, cy-6, 25, 9, LOG_DARK)
+        rect(112, cy+5, 16, 14, LOG_DARK)
+        rect(122, cy+3, 10, 8, INK)
+        rect(130, cy+7, 6, 4, BEAK)
+        rect(112, min(91, cy+20) if frame >= 3 else 91, 16, 10, CHICKEN)
+    elif kind == "rail":
         rect(72, 92, 96, 17, ROAD_EDGE)
         for x in range(72, 168, 12):
             rect(x, 93, 5, 16, TREE_TRUNK)
@@ -956,7 +966,7 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
     if dead:
         # The portrait is a separate scene ABOVE the popup, never inside it.
         lcd.fill_rect(72, 44, 96, 65, BG)
-        if death_kind in ("rail", "offscreen"):
+        if death_kind in ("rail", "offscreen", "eagle"):
             direction = worldgen.log_direction(world.seed, row) if death_kind == "offscreen" else 1
             draw_special_death(lcd, death_kind, crash_frame or water_frame or 5, direction)
         else:
@@ -966,6 +976,9 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         if death_kind == "water":
             lcd.text("ALWAYS WATCH", 56, 120, INK)
             lcd.text("WHERE YOU STEP", 48, 135, INK)
+        elif death_kind == "eagle":
+            lcd.text("KEEP MOVING", 72, 120, INK)
+            lcd.text("THE EAGLE GOT YOU", 48, 135, INK)
         elif death_kind == "rail":
             lcd.text("WATCH THE SIGNAL", 52, 120, INK)
             lcd.text("TRAIN CROSSING", 60, 135, INK)
@@ -987,6 +1000,8 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         lcd.text("RESUME", 76, 119, INK)
         lcd.fill_rect(54, 136, 12, 12, color(45, 205, 80))
         lcd.text("NEW RUN", 76, 138, INK)
+    if world.pressure_warning and not dead and not paused:
+        lcd.fill_rect(0, 236, 240, 4, CAR)
     if DEBUG:
         draw_debug_overlay(lcd, world.seed, phase)
     if dirty_rows is None or not hasattr(lcd, "show_rect"):
@@ -1086,4 +1101,15 @@ def animate_train_crash(lcd, world, col, row, score, best, facing, phase):
     for frame in range(1, 6):
         draw_world(lcd, world, col, row, score, best, False, facing,
                    dead=True, phase=phase, death_kind="rail", crash_frame=frame)
+        time.sleep_ms(90)
+
+
+def pressure_rows(elapsed_ms):
+    """Rows lost after five seconds; first advance at six seconds."""
+    return max(0, (elapsed_ms - 5000) // 1000)
+
+def animate_eagle(lcd, world, col, row, score, best, facing, phase):
+    for frame in range(1, 6):
+        draw_world(lcd, world, col, row, score, best, False, facing,
+                   dead=True, phase=phase, death_kind="eagle", crash_frame=frame)
         time.sleep_ms(90)
