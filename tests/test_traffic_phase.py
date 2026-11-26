@@ -27,7 +27,7 @@ class TrafficPhaseTests(unittest.TestCase):
             self.assertEqual(after, m.moving_car_mask(123, 30, 21))
             self.assertNotEqual(before, after)
             self.assertEqual(m.next_traffic_phase(21), 22)
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
         finally:
             if old is None:
                 sys.modules.pop("lcd", None)
