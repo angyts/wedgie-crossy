@@ -216,4 +216,27 @@ def section(seed, row):
     kind, lane, width = _base_section(seed, row)
     if MIXED_TERRAIN and kind == "road":
         kind = mixed_section_candidate(seed, row)
+    # Single railway in a grass buffer, with grass on both sides.
+    if RAILWAYS and kind == "grass" and row >= 32:
+        block = (row - 8) // BLOCK
+        if (row - 8) % BLOCK == 10 and mix32(seed ^ block) % 3 == 0:
+            kind, lane, width = "rail", 0, 1
     return kind, lane, width
+
+
+RAILWAYS = True
+TRAIN_PERIOD = 48
+TRAIN_WARNING = 8
+TRAIN_PASS = 4
+
+def train_stage(seed, row, phase):
+    """Eight warning ticks, four occupied ticks, then clear track."""
+    p = (phase + mix32(seed ^ row) % TRAIN_PERIOD) % TRAIN_PERIOD
+    if p < TRAIN_WARNING:
+        return 1
+    if p < TRAIN_WARNING + TRAIN_PASS:
+        return 2
+    return 0
+
+def train_mask(seed, row, phase):
+    return MASK if train_stage(seed, row, phase) == 2 else 0
