@@ -9,10 +9,15 @@ MOVES = ((0, 0), (-1, 0), (1, 0), (0, 1), (0, -1))
 
 
 def lane_kind(seed, row, mixed=True):
-    return w.mixed_section_candidate(seed, row) if mixed else w.section(seed, row)[0]
+    live = w.section(seed, row)[0]
+    if live == "rail":
+        return live
+    return w.mixed_section_candidate(seed, row) if mixed else live
 
 
 def occupancy(seed, row, phase, kind):
+    if kind == "rail":
+        return w.train_mask(seed, row, phase)
     if kind == "road":
         shift = w.road_position(seed, row, phase)
         first, second = w.road_origins(seed, row)
