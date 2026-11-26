@@ -43,6 +43,9 @@ def run():
         last_smooth_at = time.ticks_ms()
         last_smooth_step = -1
         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
+        progress_at = time.ticks_ms()
+        pressure_applied = 0
+        paused_at = progress_at
         debug("05 world shown, seed=%d" % seed)
         while True:
             # Capture short presses before any potentially slow LCD redraw.
@@ -51,6 +54,28 @@ def run():
                 early_inputs = keys.pressed()
                 if early_inputs:
                     queued_direction = early_inputs[0]
+            if not paused and not dead:
+                now = time.ticks_ms()
+                elapsed = time.ticks_diff(now, progress_at)
+                warning = elapsed >= 5000 and (elapsed // 250) % 2 == 0
+                due = pressure_rows(elapsed)
+                if due > pressure_applied:
+                    target = world.first + due - pressure_applied
+                    pressure_applied = due
+                    if target > row:
+                        dead = True
+                        death_kind = "eagle"
+                        animate_eagle(lcd, world, col, row, score, best, facing, phase)
+                        crash_animated = True
+                        queued_direction = None
+                        continue
+                    world.advance(target)
+                    world.pressure_warning = warning
+                    draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
+                elif warning != world.pressure_warning:
+                    world.pressure_warning = warning
+                    draw_world(lcd, world, col, row, score, best, paused, facing,
+                               phase=phase, dirty_rows=[world.first])
             # Time-based scheduling. One cell maximum per update; a delayed
             # LCD frame cannot make cars skip several cells to catch up.
             if not paused and not dead and traffic_due(time.ticks_ms(), next_traffic_at):
@@ -143,6 +168,8 @@ def run():
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
                         phase = 0
+                        progress_at = time.ticks_ms()
+                        pressure_applied = 0
                         next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(0) * FRAME_MS)
                         facing = "down"
                         dead = False
@@ -152,12 +179,14 @@ def run():
                     break
                 if key == "Y" and not paused:
                     paused = True
+                    paused_at = time.ticks_ms()
                     debug("paused")
                     draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
                     break
                 if paused:
                     if key in ("B", "Y"):
                         paused = False
+                        progress_at = time.ticks_add(progress_at, time.ticks_diff(time.ticks_ms(), paused_at))
                         next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(score) * FRAME_MS)
                         debug("resumed")
                         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
@@ -171,6 +200,8 @@ def run():
                         world = World(seed)
                         col, row, score = START_COL, START_ROW, 0
                         phase = 0
+                        progress_at = time.ticks_ms()
+                        pressure_applied = 0
                         next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(0) * FRAME_MS)
                         facing = "right"
                         paused = False
@@ -201,6 +232,11 @@ def run():
                             crash_animated = False
                         if row > score:
                             score = row
+                            progress_at = time.ticks_ms()
+                            pressure_applied = 0
+                            if world.pressure_warning:
+                                world.pressure_warning = False
+                                old_first = -1  # clear warning with full redraw
                             if score > best:
                                 best = score
                         if row - world.first > CAMERA_LEAD:
