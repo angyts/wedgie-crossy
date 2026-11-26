@@ -183,6 +183,8 @@ def terrain_kind(seed, row):
 
 def generated_mask(seed, row, phase):
     kind = terrain_kind(seed, row)
+    if kind == "rail":
+        return worldgen.train_mask(seed, row, phase)
     if kind == "road":
         return worldgen.road_mask(seed, row, phase) if PROCEDURAL_WORLD else moving_car_mask(seed, row, phase)
     if kind == "logs":
@@ -204,7 +206,7 @@ def new_run_seed(ticks):
 def hazard_at(seed, row, col, phase):
     """Collision uses the exact same mask as the renderer."""
     kind = terrain_kind(seed, row)
-    if kind == "road":
+    if kind in ("road", "rail"):
         return bool(generated_mask(seed, row, phase) & (1 << col))
     if kind in ("logs", "lilies"):
         return not bool(generated_mask(seed, row, phase) & (1 << col))
@@ -588,7 +590,9 @@ def changed_hazard_rows(world, old_phase, new_phase, player_row):
     rows = [player_row]
     for index in range(WINDOW):
         absolute = world.first + index
-        if absolute != player_row and terrain_kind(world.seed, absolute) in ("road", "logs"):
+        if absolute != player_row and terrain_kind(world.seed, absolute) == "rail":
+            rows.append(absolute)
+        elif absolute != player_row and terrain_kind(world.seed, absolute) in ("road", "logs"):
             if generated_mask(world.seed, absolute, old_phase) != generated_mask(world.seed, absolute, new_phase):
                 rows.append(absolute)
     return rows
@@ -802,6 +806,21 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                     draw_lily(lcd, px * STEP, sy)
             logs = generated_mask(world.seed, absolute, phase) if kind == "logs" else 0
             draw_log_runs(lcd, logs, sy)
+            continue
+        if kind == "rail":
+            lcd.fill_rect(0, sy, 240, STEP, ROAD_EDGE)
+            for x in range(0, 240, 12):
+                lcd.fill_rect(x, sy+2, 4, 16, TREE_TRUNK)
+            lcd.fill_rect(0, sy+5, 240, 2, INK)
+            lcd.fill_rect(0, sy+13, 240, 2, INK)
+            stage = worldgen.train_stage(world.seed, absolute, phase)
+            if stage == 2:
+                for x in range(0, 240, 40):
+                    lcd.fill_rect(x, sy+2, 38, 16, CAR_BLUE)
+                    lcd.fill_rect(x+5, sy+5, 25, 5, CAR_WINDOW)
+            elif stage == 1:
+                lcd.fill_rect(2, sy+2, 5, 5, CAR if phase & 1 else CAR_YELLOW)
+                lcd.fill_rect(233, sy+2, 5, 5, CAR if phase & 1 else CAR_YELLOW)
             continue
         if kind == "road":
             lcd.fill_rect(0, sy, 240, STEP, ROAD)
