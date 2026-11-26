@@ -29,11 +29,14 @@ class BridgeTests(unittest.TestCase):
             world=m.World(seed)
             for row in range(16,256):
                 kind=m.terrain_kind(seed,row)
-                self.assertIn(kind,("grass","road","logs","lilies"))
+                self.assertIn(kind,("grass","road","logs","lilies","rail"))
                 if kind=="grass":
                     self.assertFalse(m.generated_trees(seed,row)&(1<<m.START_COL))
                 if kind=="lilies":
                     self.assertTrue(m.generated_mask(seed,row,0)&(1<<m.worldgen.lily_route_col(seed,row)))
+                if kind=="rail":
+                    for phase in range(m.worldgen.TRAIN_PERIOD):
+                        self.assertEqual(m.generated_mask(seed,row,phase),m.worldgen.train_mask(seed,row,phase))
                 if kind=="logs":
                     self.assertEqual(m.generated_mask(seed,row,0),m.worldgen.log_mask(seed,row,0))
             world.advance(250)
