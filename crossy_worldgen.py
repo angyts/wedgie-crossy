@@ -238,5 +238,27 @@ def train_stage(seed, row, phase):
         return 2
     return 0
 
+TRAIN_LENGTH = 120
+TRAIN_SPEED = 90
+
+def train_left(seed, row, phase, step=0):
+    """Left edge in pixels; step is the existing 0..20 render fraction."""
+    p = (phase + mix32(seed ^ row) % TRAIN_PERIOD) % TRAIN_PERIOD
+    if not TRAIN_WARNING <= p < TRAIN_WARNING + TRAIN_PASS:
+        return None
+    x = -TRAIN_LENGTH + (p - TRAIN_WARNING) * TRAIN_SPEED
+    x += TRAIN_SPEED * max(0, min(20, step)) // 20
+    return x if mix32(seed ^ row) & 1 else 240 - TRAIN_LENGTH - x
+
 def train_mask(seed, row, phase):
-    return MASK if train_stage(seed, row, phase) == 2 else 0
+    """Conservative occupancy of the entire swept interval, not just endpoints."""
+    a = train_left(seed, row, phase)
+    if a is None:
+        return 0
+    b = train_left(seed, row, phase, 20)
+    left, right = min(a, b), max(a, b) + TRAIN_LENGTH
+    mask = 0
+    for col in range(WIDTH):
+        if col * 20 < right and (col + 1) * 20 > left:
+            mask |= 1 << col
+    return mask
