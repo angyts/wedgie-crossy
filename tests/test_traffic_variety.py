@@ -18,8 +18,12 @@ class TrafficVarietyTests(unittest.TestCase):
                 if kind!="road":continue
                 self.assertEqual(lane,0)
                 self.assertTrue(1<=width<=8)
-                self.assertTrue(all(w.section(seed,start+i)[0]=="road" for i in range(width)))
+                self.assertTrue(all(w.section(seed,start+i)[0] in ("road","logs") for i in range(width)))
+                self.assertEqual(w.section(seed,start+width-1)[0],"road")
                 for row in range(start,start+width):
+                    if w.section(seed,row)[0] != "road":
+                        self.assertEqual(w.road_mask(seed,row,0),0)
+                        continue
                     d=w.road_direction(seed,row)
                     period=w.road_period(seed,row)
                     directions.add(d);periods.add(period)
@@ -31,6 +35,8 @@ class TrafficVarietyTests(unittest.TestCase):
                         after=w.road_position(seed,row,phase+1)
                         self.assertIn(after-before,(0,d))
                 for row in range(start,start+width-1):
+                    if any(w.section(seed,r)[0] != "road" for r in (row,row+1)):
+                        continue
                     if w.road_direction(seed,row)==w.road_direction(seed,row+1):
                         same+=1
                     else:opposite+=1
