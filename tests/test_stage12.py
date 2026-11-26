@@ -17,7 +17,7 @@ class TrafficTests(unittest.TestCase):
             spec=importlib.util.spec_from_file_location("crossy_traffic",Path(__file__).resolve().parents[1]/"crossy.py")
             m=importlib.util.module_from_spec(spec)
             spec.loader.exec_module(m)
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
             self.assertEqual(m.traffic_direction(6),1)
             self.assertEqual(m.traffic_direction(18),-1)
             self.assertEqual(m.moving_car_mask(123,6,0),m.car_mask(123,6))
