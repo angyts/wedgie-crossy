@@ -224,7 +224,7 @@ def section(seed, row):
     return kind, lane, width
 
 
-RAILWAYS = True
+RAILWAYS = False
 TRAIN_PERIOD = 48
 TRAIN_WARNING = 8
 TRAIN_PASS = 4
