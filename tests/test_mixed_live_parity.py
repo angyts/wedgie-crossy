@@ -15,16 +15,20 @@ class MixedLiveParityTests(unittest.TestCase):
 
     def test_default_matches_base_sections(self):
         previous = w.MIXED_TERRAIN
+        previous_rail = w.RAILWAYS
         try:
             w.MIXED_TERRAIN = False
+            w.RAILWAYS = False
             for seed in (0, 1, 0x3F564588, 0x0676964C):
                 for row in range(0, 180):
                     self.assertEqual(w.section(seed, row), w._base_section(seed, row))
         finally:
             w.MIXED_TERRAIN = previous
+            w.RAILWAYS = previous_rail
 
     def test_enabled_terrain_and_masks_match_validator(self):
         previous = w.MIXED_TERRAIN
+        previous_rail = w.RAILWAYS
         try:
             w.MIXED_TERRAIN = True
             found = 0
@@ -32,7 +36,11 @@ class MixedLiveParityTests(unittest.TestCase):
                 for row in range(8, 160):
                     kind = w.section(seed, row)[0]
                     self.assertEqual(kind, v.lane_kind(seed, row))
-                    if kind == "logs":
+                    if kind == "rail":
+                        for phase in range(w.TRAIN_PERIOD):
+                            self.assertEqual(w.train_mask(seed, row, phase),
+                                             v.occupancy(seed, row, phase, kind))
+                    elif kind == "logs":
                         for phase in (0, 1, 2, 5):
                             self.assertEqual(w.log_mask(seed, row, phase),
                                              v.occupancy(seed, row, phase, kind))
@@ -45,6 +53,7 @@ class MixedLiveParityTests(unittest.TestCase):
             self.assertGreater(found, 0)
         finally:
             w.MIXED_TERRAIN = previous
+            w.RAILWAYS = previous_rail
 
 
 if __name__ == "__main__":
