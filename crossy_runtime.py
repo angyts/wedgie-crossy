@@ -8,11 +8,19 @@ from crossy import _render_frames, _render_total_ms, _render_max_ms
 
 def run():
     import save  # Firmware-only module; host logic tests can import crossy without it.
+    if gc is not None:
+        gc.collect()
+        if hasattr(gc, "mem_free"):
+            debug("heap before LCD=%d" % gc.mem_free())
     debug("01 run entered")
     lcd = None
     try:
         debug("02 creating LCD")
         lcd = LCD()
+        if gc is not None:
+            gc.collect()
+            if hasattr(gc, "mem_free"):
+                debug("heap after LCD=%d" % gc.mem_free())
         debug("03 creating Keys")
         keys = Keys()
         debug("04 creating bounded grass world")
