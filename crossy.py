@@ -12,7 +12,7 @@ import crossy_worldgen as worldgen
 from crossy_traffic_motion import pixel_offset
 from lcd import LCD, Keys, color
 
-DEBUG = True
+DEBUG = False
 PROFILE_RENDER = False
 _render_frames = 0
 _render_total_ms = 0
@@ -26,7 +26,7 @@ FIXED_SEED = None
 FRAME_MS = 100
 # Development mode never reads or writes the persistent high score.
 # Switch to False for release builds after hardware validation.
-DEV_MODE = True
+DEV_MODE = False
 TRAFFIC_TICKS = 3
 SMOOTH_TRAFFIC = True  # Set False if LCD transfers are too slow.
 SMOOTH_STEPS = (5, 10, 15)  # Maximum intermediate positions.
@@ -1029,3 +1029,32 @@ def animate_eagle(lcd, world, col, row, score, best, facing, phase):
         draw_world(lcd, world, col, row, score, best, False, facing,
                    dead=True, phase=phase, death_kind="eagle", crash_frame=frame)
         time.sleep_ms(90)
+
+
+def title_screen(lcd, keys, best):
+    """Static title with a small animated chicken; no extra framebuffer."""
+    lcd.fill(BG)
+    lcd.text("WEDGIE", 96, 25, INK)
+    lcd.text("C R O S S Y", 76, 43, CHICKEN)
+    lcd.fill_rect(0, 90, 240, 45, ROAD)
+    for x in range(0, 240, 40):
+        lcd.fill_rect(x+8, 111, 20, 2, ROAD_MARK)
+    lcd.text("BEST %d" % best, 76, 155, INK)
+    lcd.text("PRESS A TO PLAY", 60, 190, INK)
+    lcd.show()
+    frame = 0
+    last = time.ticks_ms()
+    while True:
+        if "A" in keys.pressed():
+            return
+        now = time.ticks_ms()
+        if time.ticks_diff(now, last) >= 250:
+            lcd.fill_rect(100, 65, 40, 24, BG)
+            draw_chicken(lcd, MIN_X+110, MIN_Y+65+(frame & 1)*3, "right")
+            if hasattr(lcd, "show_rect"):
+                lcd.show_rect(100, 65, 40, 24)
+            else:
+                lcd.show()
+            frame += 1
+            last = now
+        time.sleep_ms(10)
