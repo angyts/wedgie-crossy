@@ -18,7 +18,7 @@ class CrashPresentationTests(unittest.TestCase):
             m=importlib.util.module_from_spec(spec)
             spec.loader.exec_module(m)
             self.assertEqual(m.TRAFFIC_TICKS,3)
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
             class Screen:
                 def __init__(self):self.rects=[];self.texts=[]
                 def fill(self,c):pass
