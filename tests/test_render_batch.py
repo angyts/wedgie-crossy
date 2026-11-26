@@ -27,7 +27,7 @@ class RenderBatchTests(unittest.TestCase):
                     for row in range(world.first,world.last+1):
                         if row!=player and m.terrain_kind(seed,row) in ("road","logs"):
                             self.assertEqual(row in rows,m.generated_mask(seed,row,phase)!=m.generated_mask(seed,row,phase+1))
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old
