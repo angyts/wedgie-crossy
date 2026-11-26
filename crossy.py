@@ -559,14 +559,45 @@ def draw_special_death(lcd, kind, frame, direction=1):
             lcd.fill_rect(left, top, right-left, bottom-top, ink)
     frame = max(1, min(5, frame))
     if kind == "eagle":
-        cy = 46 + min(frame, 3)*12 - max(0, frame-3)*15
-        rect(91, cy, 58, 9, TREE_TRUNK)
-        rect(78, cy-6, 25, 9, LOG_DARK)
-        rect(137, cy-6, 25, 9, LOG_DARK)
-        rect(112, cy+5, 16, 14, LOG_DARK)
-        rect(122, cy+3, 10, 8, INK)
-        rect(130, cy+7, 6, 4, BEAK)
-        rect(112, min(91, cy+20) if frame >= 3 else 91, 16, 10, CHICKEN)
+        # Dive, spread wings, grab, then climb out of the portrait.
+        cy = (43, 55, 69, 48, 24)[frame-1]
+        cx = (94, 108, 120, 132, 145)[frame-1]
+        brown = color(112, 67, 35)
+        feather = color(172, 115, 62)
+        white = color(250, 244, 220)
+        for side in (-1, 1):
+            for i in range(5):
+                wx = cx + side*(10+i*6)
+                wy = cy - i*3 if frame in (1, 4, 5) else cy+i*2
+                rect(wx-4, wy, 9, 12-i, LOG_DARK)
+                rect(wx-3, wy+1, 6, 5, feather)
+            rect(cx+side*10-5, cy+5, 10, 10, brown)
+        rect(cx-9, cy, 18, 20, brown)
+        rect(cx-6, cy+15, 12, 10, LOG_DARK)
+        rect(cx-6, cy-5, 15, 12, white)
+        rect(cx+5, cy, 8, 5, BEAK)
+        rect(cx+3, cy-2, 2, 2, EYE)
+        for dx in (-6, 5):
+            rect(cx+dx, cy+21, 3, 7, BEAK)
+            rect(cx+dx-2, cy+26, 7, 2, BEAK)
+        # Rounded chicken body, feathered wing, comb, eye and feet.
+        px = 120 if frame < 3 else cx
+        py = 87 if frame < 3 else cy+28
+        rect(px-11, py, 22, 10, CHICKEN)
+        rect(px-8, py-3, 16, 16, CHICKEN)
+        rect(px-15, py-5, 8, 7, CHICKEN)
+        rect(px+3, py-9, 11, 12, CHICKEN)
+        rect(px+5, py-12, 3, 5, CAR)
+        rect(px+9, py-13, 3, 6, CAR)
+        rect(px+13, py-4, 6, 4, BEAK)
+        rect(px+10, py-6, 2, 2, EYE)
+        rect(px-6, py+2, 10, 5, CAR_YELLOW)
+        for dx in (-5, 5):
+            rect(px+dx, py+12, 2, 5, BEAK)
+            rect(px+dx, py+16, 5, 2, BEAK)
+        if frame in (2, 3):
+            for dx, dy in ((-26,-8),(24,-12),(-20,12),(27,9)):
+                rect(px+dx, py+dy, 4, 2, INK)
     elif kind == "rail":
         rect(72, 92, 96, 17, ROAD_EDGE)
         for x in range(72, 168, 12):
