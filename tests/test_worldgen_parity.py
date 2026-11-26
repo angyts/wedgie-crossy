@@ -24,7 +24,7 @@ class ParityTests(unittest.TestCase):
                     for phase in (0,1,7,11):
                         mask=m.generated_mask(seed,row,phase)
                         for col in range(12):
-                            if kind=="road": expected=bool(mask&(1<<col))
+                            if kind in ("road","rail"): expected=bool(mask&(1<<col))
                             elif kind in ("logs","lilies"):expected=not bool(mask&(1<<col))
                             else:expected=bool(m.generated_trees(seed,row)&(1<<col))
                             self.assertEqual(m.hazard_at(seed,row,col,phase),expected)
