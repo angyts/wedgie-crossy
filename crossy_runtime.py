@@ -92,6 +92,8 @@ def run():
                     if death_kind in ("water", "offscreen"):
                         animate_water(lcd, world, col, row, score, best, facing, phase,
                                       death_kind == "offscreen")
+                    elif death_kind == "rail":
+                        animate_train_crash(lcd, world, col, row, score, best, facing, phase)
                     else:
                         animate_crash(lcd, world, col, row, score, best, facing, phase)
                     crash_animated = True
@@ -121,7 +123,7 @@ def run():
                     road_rows = []
                     for ri in range(WINDOW - 1):
                         ar = world.first + ri
-                        if ar != row and terrain_kind(world.seed, ar) == "road":
+                        if (ar != row and terrain_kind(world.seed, ar) == "road") or (terrain_kind(world.seed, ar) == "rail" and worldgen.train_stage(seed, ar, phase) == 2):
                             road_rows.append(ar)
                     if road_rows:
                         draw_world(lcd, world, col, row, score, best, paused,
@@ -216,6 +218,8 @@ def run():
                         if dead and not crash_animated:
                             if death_kind == "water":
                                 animate_water(lcd, world, col, row, score, best, facing, phase)
+                            elif death_kind == "rail":
+                                animate_train_crash(lcd, world, col, row, score, best, facing, phase)
                             else:
                                 animate_crash(lcd, world, col, row, score, best, facing, phase)
                             crash_animated = True
