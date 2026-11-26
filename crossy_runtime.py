@@ -83,6 +83,10 @@ def run():
                     crash_animated = False
                     debug("traffic collision row=%d col=%d phase=%d" %
                           (row, col, next_phase))
+                if not dead and terrain_kind(seed, row) == "rail" and generated_traffic_hit(seed, row, col, phase, next_phase):
+                    dead = True
+                    death_kind = "rail"
+                    crash_animated = False
                 phase = next_phase
                 if dead:
                     if death_kind in ("water", "offscreen"):
@@ -147,14 +151,14 @@ def run():
                 if key == "Y" and not paused:
                     paused = True
                     debug("paused")
-                    draw_world(lcd, world, col, row, score, best, paused, facing)
+                    draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
                     break
                 if paused:
                     if key in ("B", "Y"):
                         paused = False
                         next_traffic_at = time.ticks_add(time.ticks_ms(), traffic_interval(score) * FRAME_MS)
                         debug("resumed")
-                        draw_world(lcd, world, col, row, score, best, paused, facing)
+                        draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
                     elif key == "A":
                         if not DEV_MODE and score > saved_best:
                             try:
@@ -170,7 +174,7 @@ def run():
                         paused = False
                         death_kind = None
                         debug("new run")
-                        draw_world(lcd, world, col, row, score, best, paused, facing)
+                        draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
                     break
                 if key in ("up", "down", "left", "right"):
                     if PROCEDURAL_WORLD:
@@ -188,7 +192,9 @@ def run():
                             dead = True
                             death_kind = "water"
                         else:
-                            dead = terrain_kind(seed, row) == "road" and hazard_at(seed, row, col, phase)
+                            dead = terrain_kind(seed, row) in ("road", "rail") and hazard_at(seed, row, col, phase)
+                            if dead and terrain_kind(seed, row) == "rail":
+                                death_kind = "rail"
                         if dead:
                             crash_animated = False
                         if row > score:
