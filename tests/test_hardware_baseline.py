@@ -144,7 +144,7 @@ class BootSmokeTests(unittest.TestCase):
         fake_lcd = types.ModuleType("lcd")
         fake_lcd.LCD = lambda: screen
         fake_lcd.Keys = lambda: types.SimpleNamespace(
-            pressed=lambda: polls.append(True) or ())
+            pressed=lambda: polls.append(True) or (("up",) if len(polls) == 1 else ()))
         fake_lcd.color = lambda r, g, b: (r, g, b)
         fake_save = types.ModuleType("save")
         fake_save.load = lambda name, default=0: default
@@ -183,7 +183,7 @@ class BootSmokeTests(unittest.TestCase):
                 sys.modules.pop("time", None)
             else:
                 sys.modules["time"] = old_time
-        self.assertIn(("text", "SCORE 0"), screen.calls)
+        self.assertIn(("text", "PRESS ANY BUTTON"), screen.calls)
         self.assertIn(("text", "SCORE 0"), screen.calls)
         self.assertIn(("text", "BEST 0"), screen.calls)
         self.assertNotIn(("text", "A RESET"), screen.calls)
@@ -194,7 +194,7 @@ class BootSmokeTests(unittest.TestCase):
         self.assertEqual(len([c for c in rects if c[1:5] == (0, 0, 240, 20)]), 1)
         self.assertIn(("fill", (27, 105, 53)), screen.calls)
         self.assertTrue(all(0 <= c[1] and 0 <= c[2] and c[1] + c[3] <= 240 and c[2] + c[4] <= 240 for c in rects))
-        self.assertEqual(sum(c[0] == "show" for c in screen.calls), 1)
+        self.assertEqual(sum(c[0] == "show" for c in screen.calls), 2)
         self.assertGreaterEqual(len(polls), 2)
 
 if __name__ == "__main__":
