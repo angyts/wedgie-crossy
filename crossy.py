@@ -780,6 +780,23 @@ def render_road_motion(lcd, world, phase, player_row, elapsed_ms, interval_ms):
         lcd.show_rect(0, sy, 240, STEP)
 
 
+def draw_rail_signals(lcd, sy, stage, phase):
+    """Two high-contrast signals, contained entirely within the rail row."""
+    red = color(255, 35, 35)
+    green = color(40, 240, 85)
+    dark = color(35, 38, 40)
+    for x in (20, 204):
+        lcd.fill_rect(x, sy+1, 16, 18, CAR_WHEEL)
+        lcd.fill_rect(x+1, sy+2, 14, 16, INK)
+        lcd.fill_rect(x+2, sy+3, 12, 14, dark)
+        if stage == 0:
+            lcd.fill_rect(x+4, sy+5, 8, 10, green)
+        elif stage == 2 or phase & 1:
+            lcd.fill_rect(x+3, sy+4, 10, 12, red)
+        else:
+            # Dim red remains visible between bright warning flashes.
+            lcd.fill_rect(x+3, sy+4, 10, 12, CAR)
+
 def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right", milestone_active=False, dead=False, phase=0, crash_frame=0, water_frame=0, death_kind=None, chicken_dx=0, dirty_rows=None, previous_phase=None, road_step=0):
     global _render_frames, _render_total_ms, _render_max_ms
     render_started = time.ticks_ms() if PROFILE_RENDER else 0
@@ -820,9 +837,8 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
                 for x in range(left, left + worldgen.TRAIN_LENGTH, 40):
                     clip.fill_rect(x, sy+2, 38, 16, CAR_BLUE)
                     clip.fill_rect(x+5, sy+5, 25, 5, CAR_WINDOW)
-            elif stage == 1:
-                lcd.fill_rect(2, sy+2, 5, 5, CAR if phase & 1 else CAR_YELLOW)
-                lcd.fill_rect(233, sy+2, 5, 5, CAR if phase & 1 else CAR_YELLOW)
+            # Draw signals last so passing carriages cannot obscure them.
+            draw_rail_signals(lcd, sy, stage, phase)
             continue
         if kind == "road":
             lcd.fill_rect(0, sy, 240, STEP, ROAD)
