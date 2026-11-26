@@ -1034,25 +1034,31 @@ def animate_eagle(lcd, world, col, row, score, best, facing, phase):
 def title_screen(lcd, keys, best):
     """Static title with a small animated chicken; no extra framebuffer."""
     lcd.fill(BG)
+    lcd.fill_rect(12, 12, 216, 48, GRASS_ALT)
+    lcd.fill_rect(12, 58, 216, 2, CHICKEN)
     lcd.text("WEDGIE", 96, 25, INK)
     lcd.text("C R O S S Y", 76, 43, CHICKEN)
     lcd.fill_rect(0, 90, 240, 45, ROAD)
     for x in range(0, 240, 40):
         lcd.fill_rect(x+8, 111, 20, 2, ROAD_MARK)
+    draw_car(lcd, 36, 92, 12, 0, 123)
+    draw_car(lcd, 176, 114, 24, 0, 123)
+    lcd.fill_rect(24, 145, 192, 28, GRASS_ALT)
     lcd.text("BEST %d" % best, 76, 155, INK)
-    lcd.text("PRESS A TO PLAY", 60, 190, INK)
+    lcd.text("PRESS ANY BUTTON", 56, 190, INK)
+    lcd.text("OR DIRECTION", 72, 204, INK)
     lcd.show()
     frame = 0
     last = time.ticks_ms()
     while True:
-        if "A" in keys.pressed():
+        if keys.pressed():
             return
         now = time.ticks_ms()
         if time.ticks_diff(now, last) >= 250:
-            lcd.fill_rect(100, 65, 40, 24, BG)
-            draw_chicken(lcd, MIN_X+110, MIN_Y+65+(frame & 1)*3, "right")
+            lcd.fill_rect(100, 65, 40, 25, BG)
+            draw_chicken(lcd, 120, 74+(frame & 1)*3, "right")
             if hasattr(lcd, "show_rect"):
-                lcd.show_rect(100, 65, 40, 24)
+                lcd.show_rect(100, 65, 40, 25)
             else:
                 lcd.show()
             frame += 1
