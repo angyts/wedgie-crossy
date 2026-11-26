@@ -30,7 +30,7 @@ class IntegrationTests(unittest.TestCase):
                             col=(origin+m.worldgen.road_position(seed,row,phase))%12
                             self.assertEqual(m.car_color(row,col,phase,seed),initial)
                 self.assertEqual(m.generated_move(world,5,16,"down",0)[:2],(5,16))
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old
