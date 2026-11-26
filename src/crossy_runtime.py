@@ -38,6 +38,7 @@ def run():
                 debug("best load failed: %r" % (exc,))
                 best = 0
         saved_best = best
+        title_screen(lcd, keys, best)
         world = World(seed)
         col, row, score = START_COL, START_ROW, 0
         paused = False
@@ -58,6 +59,12 @@ def run():
         while True:
             # Capture short presses before any potentially slow LCD redraw.
             # Preserve a pending log-carry direction rather than overwriting it.
+            if dead and not DEV_MODE and best > saved_best:
+                try:
+                    save.store("best", best)
+                    saved_best = best
+                except OSError as exc:
+                    debug("best save failed: %r" % (exc,))
             if queued_direction is None:
                 early_inputs = keys.pressed()
                 if early_inputs:
@@ -199,7 +206,7 @@ def run():
                         debug("resumed")
                         draw_world(lcd, world, col, row, score, best, paused, facing, phase=phase)
                     elif key == "A":
-                        if not DEV_MODE and score > saved_best:
+                        if not DEV_MODE and best > saved_best:
                             try:
                                 save.store("best", best)
                                 saved_best = best
