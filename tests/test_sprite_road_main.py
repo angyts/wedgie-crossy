@@ -27,7 +27,7 @@ class SpriteRoadTests(unittest.TestCase):
                     fn(screen,100,100,variant)
                     self.assertGreater(len(screen.rects),2)
                     self.assertTrue(all(100<=x and 100<=y and x+w<=120 and y+h<=120 for x,y,w,h in screen.rects))
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old
