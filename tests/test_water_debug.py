@@ -19,6 +19,7 @@ class WaterDebugTests(unittest.TestCase):
                 def fill_rect(self,x,y,w,h,c):self.rects.append((x,y,w,h,c))
                 def text(self,s,x,y,c):self.texts.append(s)
             s=Screen()
+            m.DEBUG=True
             original=m.time
             m.time=types.SimpleNamespace()
             try:
