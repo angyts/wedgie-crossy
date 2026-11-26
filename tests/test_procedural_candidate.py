@@ -18,7 +18,7 @@ class CandidateTests(unittest.TestCase):
             m=importlib.util.module_from_spec(spec)
             spec.loader.exec_module(m)
             self.assertTrue(m.PROCEDURAL_WORLD)
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
             self.assertIsNone(m.FIXED_SEED)
             self.assertNotEqual(m.new_run_seed(100),m.new_run_seed(101))
             m.FIXED_SEED=123456
