@@ -39,7 +39,7 @@ class NewTerrainTests(unittest.TestCase):
                     for phase in range(24):
                         col=(start+phase*m.traffic_direction(road))%12
                         self.assertEqual(m.car_color(road,col,phase),original)
-            self.assertTrue(m.DEV_MODE)
+            self.assertFalse(m.DEV_MODE)
         finally:
             if old is None:sys.modules.pop("lcd",None)
             else:sys.modules["lcd"]=old
