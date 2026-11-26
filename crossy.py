@@ -815,9 +815,11 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
             lcd.fill_rect(0, sy+13, 240, 2, INK)
             stage = worldgen.train_stage(world.seed, absolute, phase)
             if stage == 2:
-                for x in range(0, 240, 40):
-                    lcd.fill_rect(x, sy+2, 38, 16, CAR_BLUE)
-                    lcd.fill_rect(x+5, sy+5, 25, 5, CAR_WINDOW)
+                left = worldgen.train_left(world.seed, absolute, phase, road_step)
+                clip = ClippedLCD(lcd, 0, sy, STEP)
+                for x in range(left, left + worldgen.TRAIN_LENGTH, 40):
+                    clip.fill_rect(x, sy+2, 38, 16, CAR_BLUE)
+                    clip.fill_rect(x+5, sy+5, 25, 5, CAR_WINDOW)
             elif stage == 1:
                 lcd.fill_rect(2, sy+2, 5, 5, CAR if phase & 1 else CAR_YELLOW)
                 lcd.fill_rect(233, sy+2, 5, 5, CAR if phase & 1 else CAR_YELLOW)
@@ -898,6 +900,9 @@ def draw_world(lcd, world, col, row, score, best=0, paused=False, facing="right"
         if death_kind == "water":
             lcd.text("ALWAYS WATCH", 56, 120, INK)
             lcd.text("WHERE YOU STEP", 48, 135, INK)
+        elif death_kind == "rail":
+            lcd.text("WATCH THE SIGNAL", 52, 120, INK)
+            lcd.text("TRAIN CROSSING", 60, 135, INK)
         elif death_kind == "offscreen":
             lcd.text("MUST ALWAYS", 65, 120, INK)
             lcd.text("BE DECISIVE", 70, 135, INK)
@@ -1008,3 +1013,9 @@ def run():
     """Load the event loop only when launching the application."""
     from crossy_runtime import run as start_game
     return start_game()
+
+
+def animate_train_crash(lcd, world, col, row, score, best, facing, phase):
+    """Train-specific result screen, without blocking extra animation frames."""
+    draw_world(lcd, world, col, row, score, best, False, facing,
+               dead=True, phase=phase, death_kind="rail")
